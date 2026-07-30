@@ -1,0 +1,46 @@
+# Full research environment — simulation, training, evaluation and the API.
+#
+#   pip install -r requirements.txt
+#
+# For deployment only, backend/requirements.txt is a leaner set (no datasets,
+# no accelerate, no training path).
+#
+# TORCH: this file installs the default build, which is CUDA on Linux/Windows
+# and several GB. For CPU-only machines install torch first from the CPU index,
+# then this file:
+#
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+
+torch>=2.4
+torchaudio>=2.4
+
+# Models and training. `accelerate` is required by transformers' Seq2SeqTrainer
+# even though nothing imports it directly — training fails without it.
+transformers>=4.44
+accelerate>=0.34
+datasets>=3.0
+
+# Audio
+librosa>=0.10
+soundfile>=0.12
+scipy>=1.11
+numpy>=1.26
+
+# Dysarthria simulation. Without pyworld the F0 perturbation cannot run, and
+# that perturbation is the core of the tone hypothesis — src/data.py refuses to
+# build a corpus without it rather than silently producing weaker data.
+pyworld>=0.3.4
+
+# Metrics: CER, plus the pinyin tone extraction STER depends on.
+jiwer>=3.0
+pypinyin>=0.53
+zhconv>=1.4
+
+# API
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# backend/pick_sample.py drives the live API to choose a demo clip
+requests>=2.32

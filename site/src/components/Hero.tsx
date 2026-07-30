@@ -2,6 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
 import { GradientPlane } from "../three/GradientPlane";
 import { ToneContour } from "../three/ToneContour";
+import { scrollToId } from "../lib/scroll";
 
 // Hero: WebGL iridescent gradient + the four Mandarin tone contours, which
 // slowly flatten and recover — the failure this project measures, shown before
@@ -37,13 +38,18 @@ export function Hero() {
           An open-source speech pipeline for Mandarin speakers with dysarthria —
           the first to measure tone as a failure mode of its own.
         </p>
+        {/* Buttons, not <a href="#demo">. Under HashRouter the fragment is the
+            route, so an anchor hash would navigate instead of scrolling. */}
         <div className="hero__cta">
-          <a className="btn" href="#demo">
+          <button className="btn" onClick={() => scrollToId("demo")}>
             Hear the problem
-          </a>
-          <a className="btn btn--ghost" href="#code">
+          </button>
+          <button
+            className="btn btn--ghost"
+            onClick={() => scrollToId("code")}
+          >
             View the code
-          </a>
+          </button>
         </div>
       </div>
 

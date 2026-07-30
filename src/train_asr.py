@@ -158,6 +158,7 @@ def main(
     max_steps: int = -1,
     include_clean: bool = True,
     max_eval: int = 200,
+    resume: str | None = None,
 ) -> None:
     from transformers import (
         Seq2SeqTrainer,
@@ -255,7 +256,11 @@ def main(
         processing_class=processor,
     )
 
-    trainer.train()
+    if resume:
+        print(f"resuming from {resume}")
+        trainer.train(resume_from_checkpoint=resume)
+    else:
+        trainer.train()
 
     if max_steps < 0:
         final = trainer.evaluate()
@@ -294,6 +299,11 @@ if __name__ == "__main__":
         help="train on dysarthric audio only (risks forgetting normal speech)",
     )
     ap.add_argument("--max-eval", type=int, default=200)
+    ap.add_argument(
+        "--resume-from-checkpoint",
+        default=None,
+        help="path to a checkpoint-N dir to continue training from",
+    )
     a = ap.parse_args()
     main(
         root=a.root,
@@ -308,4 +318,5 @@ if __name__ == "__main__":
         max_steps=a.max_steps,
         include_clean=not a.no_clean,
         max_eval=a.max_eval,
+        resume=a.resume_from_checkpoint,
     )

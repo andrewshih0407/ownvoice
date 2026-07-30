@@ -1,114 +1,105 @@
 # Resume here
 
-Paused mid-training on request. Everything below is on disk.
+## Prototype status
 
-## State
-
-| thing | status |
+| component | status |
 |---|---|
-| Code (`src/`, 7 modules) | committed to git |
-| Docs (`README`, `datasets.md`, `results.md`) | committed |
-| Training data `data/train/` | 1000 utts, 3000 pairs, **91 speakers**, manifest written |
-| Dev data `data/dev2/` | 40 utts, 31 speakers, baseline + speaker calibration |
-| Checkpoint `runs/asr_v1/checkpoint-204` | **epoch 1 of 3, saved** (922 MB model + 1.8 GB optimizer) |
-| Training run | **stopped at epoch 1/3** |
+| Data pipeline + simulation | **working**, acoustically validated |
+| Tone-aware metrics (CER / TER / STER) | **working** |
+| Speaker-identity calibration | **working** |
+| Stage 1 — dysarthria-robust Mandarin ASR | **WORKING** — the prototype |
+| Stage 1 alt — LLE voice conversion | **fails**, diagnosed, documented |
+| Stage 2 — own-voice restoration | **not built** |
 
-Data and checkpoints are gitignored (large, and real dysarthria corpora are
-license-restricted patient data that must never be redistributed).
+Git: 3 commits, 21 files. Data and checkpoints gitignored.
 
-## Epoch 1 result
+## The working result
 
-whisper-small, 1 epoch, mixed eval (clean+mild+moderate+severe, 200 rows
-stratified, held-out speakers):
+`runs/asr_v1` — whisper-small fine-tuned on simulated dysarthric Mandarin.
+Matched evaluation, both models on identical held-out speakers:
+
+| condition | CER base → tuned | Δ |
+|---|---|---|
+| clean | 0.1076 → 0.1155 | +0.0078 (regression) |
+| mild | 0.1605 → 0.1370 | −0.0235 |
+| moderate | 0.2074 → 0.1311 | −0.0763 |
+| severe | 0.2877 → 0.1683 | **−0.1194** |
+| overall | 0.1908 → 0.1380 | **−0.0528** |
+
+**Intelligibility 80.9% → 86.2% (−27.7% relative CER).** Gains scale with
+severity, which is the clinically correct shape.
+
+## What does NOT work — read before pitching
+
+**There is no audio output yet.** Stage 2 (restoring the patient's own voice) is
+unbuilt, and the LLE voice-conversion route that was supposed to replace the
+cascade *degrades* intelligibility (+0.0833 CER). Full diagnosis in
+`results.md` §7.
+
+Consequence for any demo: the system currently converts dysarthric speech to
+**text**, not to restored speech. The "hear them speak again" moment is not
+available. Do not build a pitch around it.
+
+**Tone did not improve** overall (STER −0.0037) even as CER fell 27.7%. That is
+the project's most useful finding — generic ASR fine-tuning does not fix tone —
+but it means the tone claim is currently *motivating evidence*, not a solved
+problem.
+
+**Everything is simulated.** The model was trained on perturbations we designed,
+so some of the 27.7% may be learning to invert our own simulation. `data_real.py`
+loads EasyCall (real dysarthric speech, CC-BY-NC-2.0, 21k utterances, Italian)
+which would settle this. Not yet run.
+
+## Next steps
+
+1. **Validate on EasyCall.** Single highest-value experiment: does the gain
+   survive on real dysarthric speech? `python data_real.py --limit 2000`
+2. **More data.** Training overfits after 1 epoch (train loss 0.0018, eval CER
+   rising). Data scale is the binding constraint. `data.py --limit 10000`.
+3. **Fix clean-speech regression.** Route clean input to the base model, or
+   raise the clean:dysarthric ratio in training.
+4. **Stage 2**, best options first: fine-tuned Whisper encoder as VC content
+   extractor; larger multi-speaker references; VTN-style trained conversion on
+   our parallel pairs; or test mild/moderate instead of severe.
+
+## Key commands
 
 ```
-eval_cer            0.1644
-eval_intelligibility  83.56%
-eval_ster           0.0491
-eval_loss           0.3284
-train loss          11.00 -> 0.063   (converging cleanly)
+cd src
+python data.py --limit 10000 --out ../data/train_big     # build data
+python train_asr.py --root ../data/train --epochs 1      # 1 epoch is optimal
+python evaluate.py --root ../data/train --tuned ../runs/asr_v1   # matched eval
+python verify_sim.py --root ../data/dev2                 # simulation validity
 ```
 
-## The comparison that still needs doing — read this first
-
-The epoch-1 number is **not** directly comparable to the baseline. Baseline was
-measured on `data/dev2`; training eval used held-out speakers from `data/train`.
-Different test sets.
-
-Rough, non-rigorous comparison (baseline per-condition, equally weighted):
-
-```
-baseline mixed CER  ~ (0.107 + 0.168 + 0.248 + 0.474) / 4 = 0.249
-epoch-1  mixed CER  = 0.164                  -> ~34% relative CER reduction
-
-baseline mixed STER ~ (0.016 + 0.034 + 0.034 + 0.094) / 4 = 0.0445
-epoch-1  mixed STER = 0.0491                 -> NO improvement, possibly worse
-```
-
-**That STER result is the interesting one.** Character recognition improved
-substantially while tone accuracy did not. If it holds up on a matched test set,
-it is direct evidence for the project's central claim: tone is a *separate,
-harder* failure mode that general ASR fine-tuning does not fix. That is the gap
-OwnVoice exists to close.
-
-It could also be an artifact of comparing two different test sets. **Do not cite
-it either way until the next step is run.**
-
-## Next steps, in order
-
-1. **Matched before/after evaluation.** Run `baseline.py` against the held-out
-   speakers of `data/train`, then evaluate `checkpoint-204` on that identical
-   set. Until both numbers come from one test set, no improvement claim is
-   defensible.
-
-2. **Finish training.** 2 of 3 epochs remain. Resume from the checkpoint:
-
-   ```
-   cd src
-   python -u train_asr.py --root ../data/train --model openai/whisper-small \
-     --out ../runs/asr_v1 --epochs 3 --batch-size 8 --grad-accum 2 \
-     --eval-frac 0.2 --max-eval 200
-   ```
-
-   Add `--resume-from-checkpoint ../runs/asr_v1/checkpoint-204` (needs wiring
-   into `train_asr.py` — currently unimplemented) or just rerun from scratch;
-   epoch 1 took roughly 20 min on the RTX 5060.
-
-   **Do not pipe the run through `Select-String`** — it buffers until the stream
-   closes, so interim loss and eval lines are invisible. Redirect to a file and
-   `tail` it instead.
-
-3. **Per-condition eval.** The mixed average hides where the model actually
-   improved. Severe (baseline 0.474) is what matters clinically; a good mixed
-   number could be carried entirely by clean and mild.
-
-4. **Scale data.** 1000 utterances is small. Build 5-10k
-   (`data.py --limit 10000`), roughly 1.7 utt/s so ~1-2 h.
-
-5. **Stage 2 — voice cloning**, the actual "own voice" differentiator, not yet
-   started. Needs a Mandarin zero-shot TTS (CosyVoice 2, F5-TTS, or IndexTTS).
-   The evaluation metric already exists in `speaker_sim.py`.
-
-6. **File the dataset licence applications.** Still the true critical path — see
-   `docs/datasets.md`. Everything so far is on *simulated* dysarthria, which per
-   Interspeech 2025 is valid for development and unusable for validation.
+Do not pipe training through PowerShell `Select-String` — it buffers until the
+stream closes. Redirect to a file and tail it.
 
 ## Standing caveats
 
-- Every number is on **simulated** dysarthria. No intelligibility claim is
-  publishable until measured on real patient speech.
-- **Jitter perturbation is unvalidated** — no graded effect detected. Do not
-  claim jitter modelling. See `results.md` §1.
-- Speaker-similarity distributions **overlap** (cross p95 0.901 vs same p05
-  0.783), so 0.766 is a soft threshold, not a decision boundary. same-speaker
-  n=9 is too small; recalibrate on `data/train`.
+- Simulated dysarthria only; no publishable intelligibility claim.
+- **Jitter perturbation unvalidated** — no graded effect. Do not claim it.
+- Speaker-similarity distributions overlap (cross p95 0.901 vs same p05 0.783);
+  0.766 is a soft threshold.
+- Sampling noise is severe at small n — a layer sweep flipped sign between n=8
+  and n=24. Require n≥50 before believing any margin under 0.05 CER.
 
-## Competition context
+## Prior art — repositioning required
 
-- Submission deadline **July 31, 2026, 17:00 GMT+8** — a written online form, no
-  prototype required.
-- Team must be **3-10 members with at least one non-Taiwanese national**. Still
-  unresolved and it is an eligibility gate.
-- Finals (late Oct) weight Implementation & Verification at 30%, scored as
-  *progress since submission* — so submitting early-stage is fine, arguably
-  better.
+`docs/prior-art.md`. Academia Sinica + Chi Mei Hospital already published
+own-voice-preserving dysarthric restoration, and their architecture
+(Chinese-HuBERT + Seed-VC) is better validated than ours. **"Restore dysarthric
+speech in the patient's own voice" is not novel.**
+
+What remains unclaimed: **tone**. Their paper mentions "tone" zero times while
+reporting CER 23 times. Reposition around tone-aware restoration for tonal
+languages, and treat Academia Sinica as a collaboration target — the handbook
+scores "engaged collaboration units".
+
+## Competition
+
+- Deadline **July 31, 2026, 17:00 GMT+8** — online form, written, no prototype
+  required.
+- Team **3–10 members, ≥1 non-Taiwanese national** — unresolved eligibility gate.
+- Finals score *progress since submission* at 30%, so an early-stage submission
+  with a credible plan is a good position.

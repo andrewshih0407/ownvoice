@@ -69,10 +69,15 @@ The same pattern NeuroTrace already uses.
 2. Push this repo to it. The Dockerfile is at the root and needs no changes.
    ```bash
    git remote add space https://huggingface.co/spaces/<user>/<space-name>
-   git push space main
+   git push space master --force
    ```
-   HF auto-creates an initial commit, so the first push usually needs
-   `--force`.
+   The local branch is **master**, not `main`. HF auto-creates an initial
+   commit, so the first push needs `--force`.
+
+   **Note:** as of July 2026 Hugging Face bills Docker and Gradio Spaces —
+   only *static* Spaces are on the free tier, so this route needs a PRO
+   subscription. The free deployment currently in use is the static site;
+   see "Site only, no model" below.
 3. In the Space's **Settings → Variables**, set:
    ```
    OWNVOICE_MODEL        <your-username>/ownvoice-asr

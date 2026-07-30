@@ -1,6 +1,6 @@
 import { Reveal } from "../components/Reveal";
 
-const REPO = "https://github.com/";
+const REPO = "https://github.com/andrewshih0407/ownvoice";
 
 export function Problem() {
   return (

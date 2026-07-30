@@ -1,7 +1,7 @@
 import { PageHeader } from "../components/PageHeader";
 import { Reveal } from "../components/Reveal";
 
-const REPO = "https://github.com/";
+const REPO = "https://github.com/andrewshih0407/ownvoice";
 
 const MODULES = [
   { f: "dysarthria_sim.py", d: "Six perturbations over a pyworld source-filter decomposition, with severity presets matching TORGO/UASpeech conventions. Analysis runs once per utterance and is shared across severities — a 25x speedup over the first version.", cls: "tile--cobalt" },

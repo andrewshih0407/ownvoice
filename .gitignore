@@ -38,3 +38,6 @@ Thumbs.db
 # evidence trail for docs/results.md.
 !data/**/baseline.json
 !data/**/speaker_calibration.json
+# Site build output
+site/dist/
+site/node_modules/

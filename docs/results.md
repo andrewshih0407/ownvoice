@@ -1,28 +1,38 @@
 # Results log
 
-> ## ⚠ STER is confounded — do not cite the tone conclusion
+> ## STER alignment defect — found, fixed, conclusion survives
 >
-> Found while verifying the live demo. STER pairs syllables **by position**, not
-> by alignment, so a single insertion or deletion hides every tone error after
-> it:
+> Found while verifying the live demo. STER paired syllables **by position**, so
+> a single insertion hid every tone error after it:
 >
 > ```
 > 我要買東西 -> 我要賣東西     STER 0.222   correct
 > 我要買東西 -> 我就要買東西   STER 0.000   WRONG — real tone error, invisible
 > ```
 >
-> STER therefore **under-reports** tone errors, and under-reports *more* on
-> worse transcripts, which contain more length mismatches. The baseline has more
-> errors than the tuned model, so its tone errors are hidden more often.
+> It under-reported tone errors, and under-reported *more* on worse transcripts
+> (more length mismatches), which confounded the baseline-vs-tuned comparison in
+> an uncontrolled direction.
 >
-> **This confounds §6's "tone did not improve" finding** (baseline 0.0528 vs
-> tuned 0.0491) — the project's headline claim. It is not necessarily wrong, but
-> it is not currently evidence.
+> **Fixed**: STER now aligns the syllable sequences with edit distance on the
+> *segments* before comparing tones, so a tone difference cannot perturb the
+> alignment and every segmentally-correct syllable is counted wherever it lands.
+> Locked in by `src/test_metrics.py` — the regression case now scores 0.200
+> instead of 0.000.
 >
-> Fix: align the syllable sequences with edit distance (`_levenshtein_ops`
-> already exists) and compare tones on aligned pairs. Then re-run
-> `evaluate.py`. **CER is unaffected** — jiwer aligns properly, so every
-> character-level number on this page and on the site stands.
+> **Re-ran `evaluate.py`. The numbers barely moved and the conclusion holds:**
+>
+> | | STER base | STER tuned | Δ |
+> |---|---|---|---|
+> | old (positional) | 0.0528 | 0.0491 | −0.0037 |
+> | **fixed (aligned)** | **0.0529** | **0.0488** | **−0.0041** |
+>
+> The defect was real but its practical effect on this corpus was small, because
+> Whisper's Mandarin output tends to match the reference in length, so positional
+> pairing and alignment usually agreed. "Tone did not improve overall" is now
+> measured with a correct metric rather than a confounded one.
+>
+> CER was never affected — jiwer aligns properly.
 
 All numbers below are on **simulated** dysarthria. Nothing here is publishable
 as an intelligibility claim — see the caveat at the bottom.
@@ -221,13 +231,16 @@ with identical seed and eval_frac so the holdout is reproduced exactly rather
 than approximated. Broken out per condition, because a mixed average hides where
 the model actually improved.
 
+STER figures below are the **corrected, alignment-based** values (see the note
+at the top of this file); CER is unchanged.
+
 | condition | CER base | CER tuned | Δ | STER base | STER tuned | Δ |
 |---|---|---|---|---|---|---|
-| clean | 0.1076 | 0.1155 | **+0.0078** | 0.0271 | 0.0437 | **+0.0167** |
-| mild | 0.1605 | 0.1370 | −0.0235 | 0.0409 | 0.0469 | +0.0060 |
-| moderate | 0.2074 | 0.1311 | **−0.0763** | 0.0504 | 0.0512 | +0.0007 |
-| severe | 0.2877 | 0.1683 | **−0.1194** | 0.0929 | 0.0547 | **−0.0382** |
-| **overall** | 0.1908 | 0.1380 | **−0.0528** | 0.0528 | 0.0491 | −0.0037 |
+| clean | 0.1076 | 0.1155 | **+0.0078** | 0.0269 | 0.0429 | **+0.0161** |
+| mild | 0.1605 | 0.1370 | −0.0235 | 0.0401 | 0.0482 | +0.0081 |
+| moderate | 0.2074 | 0.1311 | **−0.0763** | 0.0499 | 0.0502 | +0.0003 |
+| severe | 0.2877 | 0.1683 | **−0.1194** | 0.0947 | 0.0536 | **−0.0410** |
+| **overall** | 0.1908 | 0.1380 | **−0.0528** | 0.0529 | 0.0488 | −0.0041 |
 
 **Intelligibility 80.9% → 86.2% (27.7% relative CER reduction).**
 
@@ -244,9 +257,9 @@ being included in training specifically to prevent this. Mitigation was partial,
 not sufficient. A deployed system should route clean input to the base model, or
 the clean:dysarthric ratio needs raising.
 
-**Tone barely moved overall** (−0.0037), and the per-condition split explains
-why the aggregate is misleading: severe STER improved substantially (0.0929 →
-0.0547, 41% relative) while clean, mild and moderate STER all got slightly
+**Tone barely moved overall** (−0.0041), and the per-condition split explains
+why the aggregate is misleading: severe STER improved substantially (0.0947 →
+0.0536, 43% relative) while clean, mild and moderate STER all got slightly
 *worse*. Tone recovery happened only where degradation was most extreme; net
 effect across conditions is ~zero.
 

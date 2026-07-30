@@ -19,34 +19,25 @@ Metric choice matters here and differs from the English dysarthria literature:
   segmental recognition. Without this split you cannot tell whether the model
   is mishearing the syllable or mishearing the tone.
 
-KNOWN DEFECT IN STER — READ BEFORE CITING IT
---------------------------------------------
-STER pairs syllables BY POSITION (``zip``), not by alignment. A single
-insertion or deletion shifts the hypothesis relative to the reference, and
-every syllable after that point compares against the wrong reference syllable,
-fails the ``r_seg == h_seg`` guard, and is silently dropped from the
-denominator.
+STER ALIGNMENT — fixed, and worth knowing why
+---------------------------------------------
+STER originally paired syllables BY POSITION (``zip``). A single insertion or
+deletion shifted the hypothesis, so every syllable after it compared against the
+wrong reference position, failed the segment-equality guard, and dropped
+silently out of the denominator:
 
-Measured:
+    我要買東西 -> 我要賣東西     STER 0.222   correct
+    我要買東西 -> 我就要買東西   STER 0.000   WRONG, the tone error vanished
 
-    reference 我要買東西  hypothesis 我要賣東西    -> STER 0.222  (correct)
-    reference 我要買東西  hypothesis 我就要買東西  -> STER 0.000  (WRONG:
-                                                     the tone error is real
-                                                     but invisible)
+That made STER under-report tone errors, and under-report *more* on worse
+transcripts (which contain more length mismatches) — biasing any
+baseline-vs-tuned comparison in an uncontrolled direction.
 
-So STER **under-reports** tone errors, and it under-reports *more* on worse
-transcripts, because those contain more insertions and deletions. That biases
-any baseline-vs-tuned comparison in an uncontrolled direction: the weaker model
-has more length mismatches, so more of its tone errors go uncounted.
+It now aligns with edit distance on the SEGMENTS before comparing tones, so
+tone differences cannot perturb the alignment and every segmentally-correct
+syllable is counted wherever it lands. See ``_align_indices`` and ``_ster``.
 
-Consequence: the STER figures in docs/results.md (baseline 0.0528, tuned
-0.0491, and the "tone did not improve" conclusion drawn from them) are
-CONFOUNDED and must not be cited as evidence until this is fixed.
-
-The fix is to align the two syllable sequences with edit distance first — the
-machinery already exists in ``_levenshtein_ops`` — and compare tones only on
-substitution/match pairs from that alignment, rather than on positional pairs.
-CER is unaffected: it uses jiwer, which aligns properly.
+CER was never affected: jiwer aligns properly.
 """
 
 from __future__ import annotations
@@ -108,6 +99,70 @@ def _rate(sub: int, dele: int, ins: int, ref_len: int) -> float:
     return (sub + dele + ins) / ref_len if ref_len else 0.0
 
 
+def _align_indices(ref: list, hyp: list) -> list[tuple[int | None, int | None, str]]:
+    """Edit-distance alignment returning (ref_idx, hyp_idx, op) triples.
+
+    op is one of "match", "sub", "del", "ins". This is what STER needs and what
+    positional ``zip`` could not provide: with ``zip``, a single insertion
+    shifted every later syllable against the wrong reference position, so those
+    syllables failed the segment-equality guard and dropped silently out of the
+    denominator — hiding real tone errors.
+    """
+    n, m = len(ref), len(hyp)
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n + 1):
+        dp[i][0] = i
+    for j in range(m + 1):
+        dp[0][j] = j
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = 0 if ref[i - 1] == hyp[j - 1] else 1
+            dp[i][j] = min(
+                dp[i - 1][j - 1] + cost, dp[i - 1][j] + 1, dp[i][j - 1] + 1
+            )
+
+    i, j = n, m
+    out: list[tuple[int | None, int | None, str]] = []
+    while i > 0 or j > 0:
+        if i > 0 and j > 0:
+            cost = 0 if ref[i - 1] == hyp[j - 1] else 1
+            if dp[i][j] == dp[i - 1][j - 1] + cost:
+                out.append((i - 1, j - 1, "match" if cost == 0 else "sub"))
+                i, j = i - 1, j - 1
+                continue
+        if i > 0 and dp[i][j] == dp[i - 1][j] + 1:
+            out.append((i - 1, None, "del"))
+            i -= 1
+            continue
+        out.append((None, j - 1, "ins"))
+        j -= 1
+    out.reverse()
+    return out
+
+
+def _ster(ref_syl: list[str], hyp_syl: list[str]) -> tuple[int, int]:
+    """Return (wrong_tone, matched) over ALIGNED, segmentally-correct syllables.
+
+    Alignment runs on the SEGMENTS (initial+final) rather than whole syllables,
+    so a tone difference cannot perturb the alignment itself — mai3 and mai4
+    align as the same segment "mai", and only then are their tones compared.
+    That is exactly the population STER is defined over.
+    """
+    ref_pairs = [_split_tone(s) for s in ref_syl]
+    hyp_pairs = [_split_tone(s) for s in hyp_syl]
+    ref_segs = [p[0] for p in ref_pairs]
+    hyp_segs = [p[0] for p in hyp_pairs]
+
+    matched = wrong = 0
+    for i, j, op in _align_indices(ref_segs, hyp_segs):
+        if op != "match" or i is None or j is None:
+            continue
+        matched += 1
+        if ref_pairs[i][1] != hyp_pairs[j][1]:
+            wrong += 1
+    return wrong, matched
+
+
 @dataclass
 class Scores:
     cer: float
@@ -150,16 +205,8 @@ def score(reference: str, hypothesis: str) -> Scores:
     hyp_tones = [_split_tone(s)[1] for s in hyp_syl]
     ter = _rate(*_levenshtein_ops(ref_tones, hyp_tones))
 
-    # STER: tone errors restricted to positionally-matched, segmentally-correct
-    # syllables. Only meaningful when the two sequences are comparable.
-    matched = wrong_tone = 0
-    for r, h in zip(ref_syl, hyp_syl):
-        r_seg, r_tone = _split_tone(r)
-        h_seg, h_tone = _split_tone(h)
-        if r_seg == h_seg:
-            matched += 1
-            if r_tone != h_tone:
-                wrong_tone += 1
+    # STER over ALIGNED segmentally-correct syllables (see _ster).
+    wrong_tone, matched = _ster(ref_syl, hyp_syl)
     ster = wrong_tone / matched if matched else 0.0
 
     return Scores(
@@ -202,13 +249,9 @@ def score_corpus(pairs: list[tuple[str, str]]) -> Scores:
         )
         t_sub, t_del, t_ins, t_len = t_sub + a, t_del + b, t_ins + c, t_len + n
 
-        for r, h in zip(ref_syl, hyp_syl):
-            r_seg, r_tone = _split_tone(r)
-            h_seg, h_tone = _split_tone(h)
-            if r_seg == h_seg:
-                matched += 1
-                if r_tone != h_tone:
-                    wrong_tone += 1
+        w, m_ = _ster(ref_syl, hyp_syl)
+        wrong_tone += w
+        matched += m_
 
     return Scores(
         cer=tot_cer_num / tot_chars if tot_chars else 0.0,

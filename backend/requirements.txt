@@ -1,0 +1,22 @@
+# Runtime deps for the deployed container. torch/torchaudio are installed
+# separately from the CPU index in the Dockerfile — the default wheels bundle
+# ~2.5 GB of CUDA libraries that are useless on a CPU Space.
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+transformers>=4.44
+soundfile>=0.12
+librosa>=0.10
+numpy>=1.26
+scipy>=1.11
+
+# Metrics: CER, and the pinyin tone extraction STER depends on.
+jiwer>=3.0
+pypinyin>=0.53
+zhconv>=1.4
+
+# Dysarthria simulation. Without it /simulate returns 503 — the F0 perturbation
+# is the core of the tone hypothesis and there is no meaningful fallback.
+pyworld>=0.3.4

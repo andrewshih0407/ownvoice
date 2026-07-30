@@ -55,6 +55,13 @@ MAX_UPLOAD_BYTES = int(os.environ.get("OWNVOICE_MAX_BYTES", 25 * 1024 * 1024))
 TUNED_DIR = os.environ.get("OWNVOICE_MODEL", str(ROOT / "runs" / "asr_v1"))
 BASE_MODEL = os.environ.get("OWNVOICE_BASE_MODEL", "openai/whisper-small")
 
+# When a built frontend is present, this process serves the site AND the API
+# from one origin — which is how the deployed Space runs, and why
+# .env.production sets VITE_API_BASE="" so the client uses relative paths.
+# In local dev the directory is absent and Vite serves the site on :5173
+# instead, with CORS below covering the cross-origin case.
+WEB_DIR = Path(os.environ.get("OWNVOICE_WEB", ROOT / "backend" / "web"))
+
 GEN_KWARGS = {
     "language": "zh",
     "task": "transcribe",
@@ -214,6 +221,18 @@ def _tone_diff(reference: str, hypothesis: str) -> list[dict]:
     return diff
 
 
+def _tuned_is_distinct() -> bool:
+    """Is the 'fine-tuned' model actually different from the baseline?
+
+    Deploying without setting OWNVOICE_MODEL leaves both pointing at stock
+    whisper. The demo would then compare a model against itself, print two
+    identical transcripts and identical CERs, and still look like it worked —
+    the worst kind of failure, because nothing errors. Surfaced here and shouted
+    at boot so it cannot pass unnoticed.
+    """
+    return str(TUNED_DIR).rstrip("/\\") != str(BASE_MODEL).rstrip("/\\")
+
+
 @app.get("/health")
 def health() -> dict:
     return {
@@ -221,8 +240,12 @@ def health() -> dict:
         "device": _device(),
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "loaded": sorted(_pipes.keys()),
-        "tuned_model_present": Path(TUNED_DIR).exists(),
+        "tuned_model_present": Path(TUNED_DIR).exists()
+        or not str(TUNED_DIR).startswith(("/", "C:", ".")),
         "tuned_model_path": TUNED_DIR,
+        "base_model": BASE_MODEL,
+        # False means the A/B comparison is meaningless — see _tuned_is_distinct.
+        "tuned_is_distinct_from_base": _tuned_is_distinct(),
         "simulator_full": pyworld_available(),
         "severities": list(SEVERITY),
         "max_seconds": MAX_SECONDS,
@@ -296,11 +319,63 @@ async def transcribe_endpoint(
     return result
 
 
+# ---------------------------------------------------------------------------
+# Static frontend. Mounted LAST so it cannot shadow the API routes above.
+# ---------------------------------------------------------------------------
+if WEB_DIR.is_dir() and (WEB_DIR / "index.html").exists():
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount(
+        "/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets"
+    )
+    if (WEB_DIR / "samples").is_dir():
+        app.mount(
+            "/samples", StaticFiles(directory=WEB_DIR / "samples"), name="samples"
+        )
+
+    @app.get("/{full_path:path}")
+    def spa(full_path: str):
+        """Serve real files if they exist, otherwise index.html.
+
+        The site is a single-page app with client-side routes (/how, /method,
+        /code). A visitor deep-linking or refreshing on one of those must get
+        index.html rather than a 404, and the router then takes over.
+        """
+        candidate = (WEB_DIR / full_path).resolve()
+        # Containment check: never serve anything outside WEB_DIR, whatever the
+        # path contains.
+        if (
+            full_path
+            and WEB_DIR.resolve() in candidate.parents
+            and candidate.is_file()
+        ):
+            return FileResponse(candidate)
+        return FileResponse(WEB_DIR / "index.html")
+
+    print(f"[ownvoice] serving frontend from {WEB_DIR}")
+else:
+    print(f"[ownvoice] no frontend at {WEB_DIR} — API only")
+
+if not _tuned_is_distinct():
+    print(
+        "\n"
+        "[ownvoice] ============================ WARNING ============================\n"
+        f"[ownvoice] OWNVOICE_MODEL and OWNVOICE_BASE_MODEL are both {BASE_MODEL!r}.\n"
+        "[ownvoice] The demo will compare the model against ITSELF: two identical\n"
+        "[ownvoice] transcripts, identical CERs, and no error anywhere. Set\n"
+        "[ownvoice] OWNVOICE_MODEL to the fine-tuned checkpoint before showing this\n"
+        "[ownvoice] to anyone.\n"
+        "[ownvoice] =================================================================\n"
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
         app,
+        # 0.0.0.0 in a container; loopback locally unless overridden.
         host=os.environ.get("OWNVOICE_HOST", "127.0.0.1"),
         port=int(os.environ.get("OWNVOICE_PORT", 7860)),
         log_level="info",

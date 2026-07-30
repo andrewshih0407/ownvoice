@@ -42,3 +42,8 @@ Thumbs.db
 site/dist/
 site/node_modules/
 backend/server.log
+backend/web/
+backend/prod.log
+backend/guard.log
+backend/guard.err
+backend/_testcase.json

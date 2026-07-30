@@ -1,0 +1,40 @@
+# Datasets — never commit. Generated corpora are large, and the real dysarthria
+# corpora are license-restricted patient medical data that must NOT be
+# redistributed under any circumstances (see docs/datasets.md).
+data/
+*.wav
+*.mp3
+*.flac
+
+# Model checkpoints and training runs
+runs/
+checkpoint-*/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# HuggingFace / torch caches
+.cache/
+wandb/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Keep the generated metric reports — they are small, and they are the
+# evidence trail for docs/results.md.
+!data/**/baseline.json
+!data/**/speaker_calibration.json

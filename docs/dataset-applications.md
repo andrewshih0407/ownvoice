@@ -20,44 +20,43 @@ the build phase starts mid-September.
 
 ---
 
-## 1. MDSC / AISHELL-6B — Mandarin (highest priority)
+## 1. MDSC / AISHELL-6B — Mandarin. NO APPLICATION NEEDED.
 
-17 h, 21 dysarthric + 25 control speakers, home-environment recordings, **with
-intelligibility ratings**. Mandarin, so it directly serves the Taiwan case.
+**This is not a licence application. It is a registration and a download.**
+Licence is **CC BY NC 4.0** — open for non-commercial research. An earlier
+version of this file drafted a request email for it; that was based on a
+misreading of the product page and is deleted.
 
-- Page: https://www.aishelltech.com/AISHELL_6B
+18,630 recordings / 17 h. Dysarthric: 8,505 recordings, 9.4 h, 21 native
+Mandarin speakers aged 18–48, gender balanced, etiologies including cerebral
+palsy and Wilson's disease. Control: 10,125 recordings, 7.6 h, 25 speakers.
+16 kHz — already our pipeline's rate.
+
+**Do this, about ten minutes:**
+
+1. Register free at https://www.speechhome.com/signup to get a member ID.
+2. Go to https://opendata.aishelltech.com/aishell-6b, find the AISHELL-6B row,
+   and submit the data-application form with that member ID and a licence type.
+3. Or use the "Netdisk" links directly from
+   https://www.aishelltech.com/AISHELL_6B — they are MyAirBridge (mab.to)
+   transfers and will ask you to accept terms and consent to personal-data
+   processing first.
+
+Both routes need an account and an acceptance of terms, so they must be done by
+a person, not by an assistant.
+
 - Paper: [arXiv 2406.10304](https://arxiv.org/abs/2406.10304) (Interspeech 2024)
-- Holder: Beijing Hillshell Technology (北京希尔贝壳科技有限公司)
-- Status: described as open-source, but the product page carries no download
-  link. Requires a direct request.
+- Baseline recipe: https://github.com/greeeenmouth/LRDWWS
+- Also available: **MDSC-Eval**, 8,760 more recordings / 9 h from 20 additional
+  dysarthric speakers (SLT 2024 LRDWWS challenge, https://lrdwws.org/)
 
-**Draft email** — to the contact address on the AISHELL site (and cc the paper's
-corresponding author):
+**Why it is the top priority:** it is real Mandarin dysarthric speech, so it is
+the only obtainable corpus that can test the *tone* claim on real patients.
+EasyCall is Italian and cannot. Caveat: command- and wake-word oriented rather
+than continuous speech, so its CER is not comparable to our sentence-level
+numbers — but tone is carried per syllable and is fully present.
 
-> Subject: Request for access — MDSC / AISHELL-6B Mandarin dysarthria corpus
->
-> Dear AISHELL team,
->
-> I am [FULL NAME], [AFFILIATION]. I am requesting access to the Mandarin
-> Dysarthria Speech Corpus (MDSC / AISHELL-6B), described in "Enhancing Voice
-> Wake-Up for Dysarthria" (Interspeech 2024, arXiv 2406.10304).
->
-> I am developing a speech-restoration system for Mandarin speakers with
-> dysarthria, with a focus on tone recovery — Mandarin tone is lexically
-> contrastive, and existing dysarthria research is overwhelmingly English-first,
-> so tonal-language degradation is under-studied. The work is a non-commercial
-> research entry for Taiwan's 2026 Presidential Hackathon International Track
-> (theme: Digital Inclusion in the AI Era).
->
-> I would use the corpus solely for non-commercial research, would not
-> redistribute it, and would cite the corpus paper in any resulting write-up. I
-> am happy to sign whatever licence agreement you require and to provide
-> institutional confirmation.
->
-> Could you advise on the access procedure?
->
-> With thanks,
-> [FULL NAME] · [EMAIL] · [AFFILIATION]
+Contact for queries: tech@aishelldata.com
 
 ---
 

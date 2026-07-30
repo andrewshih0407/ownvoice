@@ -18,16 +18,51 @@ mid-September. **File these now**, regardless of what happens with the proposal.
 
 ## Dysarthric speech (restricted)
 
-### MDSC — Mandarin Dysarthria Speech Corpus  ← start here
-- **Content:** 17 hrs, 18,630 recordings. 21 dysarthric speakers (12F/9M),
-  25 controls (13F/12M). Home-environment recordings.
-  Includes age, gender, disease type, **and intelligibility ratings**.
-- **Why it matters:** the intelligibility ratings give you a ready-made
-  evaluation axis, and it's Mandarin — matching the Taiwan pitch.
-- **Access:** released as AISHELL-6B at https://www.aishelltech.com/AISHELL_6B
+### MDSC / AISHELL-6B — Mandarin Dysarthria Speech Corpus  ← GET THIS ONE
+
+**Licence: CC BY NC 4.0.** Open, non-commercial. No signed legal agreement, no
+institutional sponsor, no multi-week review. An earlier version of this file
+said it "requires a direct request" — that was wrong.
+
+- **Content:** 18,630 recordings / 17 h total.
+  - dysarthric: 8,505 recordings, 9.4 h, **21 speakers** (12F/9M)
+  - control: 10,125 recordings, 7.6 h, 25 speakers (13F/12M)
+- **Speakers:** native Mandarin, ages 18–48, gender balanced. Etiologies
+  include cerebral palsy and hepatolenticular degeneration (Wilson's disease).
+- **Audio:** 16 kHz, quiet indoor, ~20 cm from a mobile microphone — the
+  sample rate already matches our pipeline, so no resampling.
+- **Text:** 10 wake-up words repeated 5× at varying speeds, plus 355
+  non-wake-up items (fixed commands, free commands, household instructions and
+  other phrases); 295 non-repeated sentences per speaker.
 - **Paper:** [arXiv 2406.10304](https://arxiv.org/abs/2406.10304) (Interspeech 2024)
-- **Status:** described as open-source; verify actual download terms first.
-  This is the most promising and least encumbered option.
+- **Baseline recipe:** https://github.com/greeeenmouth/LRDWWS
+- **Related:** MDSC-Eval, a further 8,760 recordings / 9 h from 20 more
+  dysarthric speakers, released for the SLT 2024 LRDWWS challenge
+  (https://lrdwws.org/).
+
+**Why this is the single most valuable thing to obtain.** It is *real Mandarin
+dysarthric speech*. EasyCall can only tell us whether the approach survives on
+authentic pathology; it is Italian and therefore cannot say anything about
+tone. MDSC can test the tone claim itself — the project's whole argument — on
+real patients rather than on perturbations we designed.
+
+**Known limitation:** it is command- and wake-word oriented rather than
+continuous conversational speech, so CER on it is not directly comparable to
+CER on our Common Voice sentences. Tone is still fully present: Mandarin tone is
+carried per syllable, and isolated words carry it just as sentences do.
+
+**How to get it — needs a human, roughly ten minutes:**
+
+1. From https://www.aishelltech.com/AISHELL_6B the "Dataset" button leads to
+   https://opendata.aishelltech.com/aishell-6b
+2. That page's data-application form wants a **Speechhome member ID** (free
+   registration at https://www.speechhome.com/signup) plus a licence type.
+3. The direct "Netdisk" download links are MyAirBridge (mab.to) transfers.
+   Opening one presents a terms-and-conditions and personal-data-consent
+   banner that must be accepted before the files are reachable.
+
+Steps 2 and 3 both require accepting terms and creating an account, so they
+have to be done by you rather than by an assistant.
 
 ### CDSD — Chinese Dysarthria Speech Database
 - **Content:** 133 hrs, 44 speakers — the largest Chinese dysarthria corpus.

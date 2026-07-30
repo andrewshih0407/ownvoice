@@ -1,5 +1,5 @@
 import { Hero } from "../components/Hero";
-import { SignalWeb } from "../components/SignalWeb";
+import { VoiceExploded } from "../components/VoiceExploded";
 import { ToneGallery } from "../components/ToneGallery";
 import { HelixPipeline } from "../components/HelixPipeline";
 import { Evidence } from "../components/Evidence";
@@ -19,7 +19,7 @@ export function Home() {
   return (
     <>
       <Hero />
-      <SignalWeb />
+      <VoiceExploded />
       <Problem />
       <ToneGallery />
       <Science />

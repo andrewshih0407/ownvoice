@@ -1,0 +1,59 @@
+﻿git : warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+At line:7 char:1
++ git add -A 2>`$null
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: in the working copy of '.claude/launch.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/components/CodeFlythrough.tsx', LF will be replaced by CRLF the next time 
+Git touches it
+warning: in the working copy of 'site/src/components/CustomCursor.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/Evidence.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/FloatingNav.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/HelixPipeline.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/Hero.tsx', LF will be replaced by CRLF the next time Git touches 
+it
+warning: in the working copy of 'site/src/components/Layout.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/PageHeader.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/Reveal.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/SignalWeb.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/SoundToggle.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/ToneGallery.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/components/ToneMascot.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/lib/api.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/lib/scroll.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/lib/useSmoothScroll.ts', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/main.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/pages/CodePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/pages/Home.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/pages/Method.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/pages/Screening.tsx', LF will be replaced by CRLF the next time Git touches 
+it
+warning: in the working copy of 'site/src/sections/Demo.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/sections/Sections.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/styles/global.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/src/three/GradientPlane.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/src/three/ToneContour.tsx', LF will be replaced by CRLF the next time Git 
+touches it
+warning: in the working copy of 'site/tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/tsconfig.node.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'site/vite.config.ts', LF will be replaced by CRLF the next time Git touches it

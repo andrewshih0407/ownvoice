@@ -1,5 +1,29 @@
 # Results log
 
+> ## ⚠ STER is confounded — do not cite the tone conclusion
+>
+> Found while verifying the live demo. STER pairs syllables **by position**, not
+> by alignment, so a single insertion or deletion hides every tone error after
+> it:
+>
+> ```
+> 我要買東西 -> 我要賣東西     STER 0.222   correct
+> 我要買東西 -> 我就要買東西   STER 0.000   WRONG — real tone error, invisible
+> ```
+>
+> STER therefore **under-reports** tone errors, and under-reports *more* on
+> worse transcripts, which contain more length mismatches. The baseline has more
+> errors than the tuned model, so its tone errors are hidden more often.
+>
+> **This confounds §6's "tone did not improve" finding** (baseline 0.0528 vs
+> tuned 0.0491) — the project's headline claim. It is not necessarily wrong, but
+> it is not currently evidence.
+>
+> Fix: align the syllable sequences with edit distance (`_levenshtein_ops`
+> already exists) and compare tones on aligned pairs. Then re-run
+> `evaluate.py`. **CER is unaffected** — jiwer aligns properly, so every
+> character-level number on this page and on the site stands.
+
 All numbers below are on **simulated** dysarthria. Nothing here is publishable
 as an intelligibility claim — see the caveat at the bottom.
 

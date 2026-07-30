@@ -14,6 +14,25 @@ import { Reveal } from "../components/Reveal";
 const SEVERITIES = ["mild", "moderate", "severe"] as const;
 type Severity = (typeof SEVERITIES)[number];
 
+// Shipped so the demo works for a visitor with no Mandarin audio to hand — which
+// is most of them. CC0, from Common Voice zh-TW.
+//
+// Chosen from the HELD-OUT speakers, deliberately. Picking from the head of the
+// manifest gave clips where the fine-tuned model scored CER 0.000 nine times
+// out of ten — but those were training clips, and this model overfits hard, so
+// the demo would have been showing memorisation rather than generalisation.
+//
+// On this unseen clip at severe: stock Whisper renders 溝通 (gōu tōng,
+// "communicate") as 構同 (gòu tóng) — tone errors on BOTH syllables, which is
+// precisely the failure this project measures. Our model recovers the word but
+// still misses 良性 -> 人性, so the demo shows a real improvement rather than a
+// perfect one. CER 0.444 -> 0.111.
+const SAMPLE = {
+  url: "/samples/sample-clean.wav",
+  text: "與地主做良性的溝通",
+  gloss: "“to communicate constructively with the landowner”",
+};
+
 export function Demo() {
   const [health, setHealth] = useState<"loading" | "ok" | "down">("loading");
 
@@ -23,7 +42,13 @@ export function Demo() {
   const [err, setErr] = useState<string | null>(null);
   const [simUrl, setSimUrl] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  // Which audio /transcribe should receive. Once a simulation exists this
+  // defaults to it: transcribing the clean original would demonstrate nothing,
+  // since the whole claim is about degraded speech.
+  const [useSimulated, setUseSimulated] = useState(true);
   const fileRef = useRef<File | null>(null);
+  const simFileRef = useRef<File | null>(null);
 
   useEffect(() => {
     checkHealth()
@@ -38,15 +63,36 @@ export function Demo() {
     };
   }, [simUrl]);
 
+  const clearOutputs = () => {
+    setResult(null);
+    setErr(null);
+    simFileRef.current = null;
+    if (simUrl) {
+      URL.revokeObjectURL(simUrl);
+      setSimUrl(null);
+    }
+  };
+
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     fileRef.current = f;
-    setResult(null);
+    setFileName(f.name);
+    clearOutputs();
+  };
+
+  const loadSample = async () => {
     setErr(null);
-    if (simUrl) {
-      URL.revokeObjectURL(simUrl);
-      setSimUrl(null);
+    try {
+      const res = await fetch(SAMPLE.url);
+      if (!res.ok) throw new Error(`Sample not found (${res.status})`);
+      const blob = await res.blob();
+      fileRef.current = new File([blob], "sample-clean.wav", { type: "audio/wav" });
+      setFileName("sample-clean.wav");
+      setReference(SAMPLE.text);
+      clearOutputs();
+    } catch (e: any) {
+      setErr(e.message || "Could not load the sample");
     }
   };
 
@@ -58,6 +104,11 @@ export function Demo() {
       const blob = await simulate(fileRef.current, severity);
       if (simUrl) URL.revokeObjectURL(simUrl);
       setSimUrl(URL.createObjectURL(blob));
+      simFileRef.current = new File([blob], `simulated_${severity}.wav`, {
+        type: "audio/wav",
+      });
+      setUseSimulated(true);
+      setResult(null); // any previous transcript was of different audio
     } catch (e: any) {
       setErr(e.message || "Simulation failed");
     } finally {
@@ -66,11 +117,14 @@ export function Demo() {
   };
 
   const runTranscribe = async () => {
-    if (!fileRef.current) return setErr("Choose an audio file first.");
+    const sim = simFileRef.current;
+    const target = useSimulated && sim ? sim : fileRef.current;
+    if (!target) return setErr("Choose an audio file first.");
     setBusy("transcribe");
     setErr(null);
     try {
-      setResult(await transcribe(fileRef.current, reference || undefined));
+      const r = await transcribe(target, reference || undefined);
+      setResult({ ...r, _source: target === sim ? "simulated" : "original" });
     } catch (e: any) {
       setErr(e.message || "Transcription failed");
     } finally {
@@ -108,8 +162,17 @@ export function Demo() {
             <h3>1 · Hear it</h3>
             <label className="demo-file">
               <input type="file" accept="audio/*" onChange={onFile} />
-              <span>{fileRef.current?.name || "Choose a Mandarin audio clip"}</span>
+              <span>{fileName || "Choose a Mandarin audio clip"}</span>
             </label>
+
+            <button className="demo-sample" onClick={loadSample} type="button">
+              No clip to hand? Use our sample →
+            </button>
+            {fileName === "sample-clean.wav" && (
+              <p className="demo-sample__note">
+                {SAMPLE.text} &nbsp;<span>{SAMPLE.gloss}</span>
+              </p>
+            )}
 
             <label className="demo-label" htmlFor="sev">Severity</label>
             <select
@@ -148,19 +211,62 @@ export function Demo() {
               onChange={(e) => setReference(e.target.value)}
             />
 
+            {simFileRef.current && (
+              <div className="demo-source">
+                <span className="demo-label" style={{ margin: "0 0 6px" }}>
+                  Transcribe which audio
+                </span>
+                <div className="demo-toggle">
+                  <button
+                    type="button"
+                    className={useSimulated ? "is-on" : ""}
+                    onClick={() => { setUseSimulated(true); setResult(null); }}
+                  >
+                    Simulated ({severity})
+                  </button>
+                  <button
+                    type="button"
+                    className={!useSimulated ? "is-on" : ""}
+                    onClick={() => { setUseSimulated(false); setResult(null); }}
+                  >
+                    Original
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button className="demo-btn" onClick={runTranscribe} disabled={busy !== null}>
               {busy === "transcribe" ? "Transcribing…" : "Transcribe"}
             </button>
 
             {result && (
               <div className="demo-result">
+                {result._source && (
+                  <div className="demo-src-tag">
+                    transcribed the {result._source} audio
+                  </div>
+                )}
                 {result.baseline_transcript && (
                   <>
-                    <div className="demo-result__name">Stock Whisper</div>
+                    <div className="demo-result__name">
+                      Stock Whisper
+                      {result.baseline_scores && (
+                        <em className="demo-cer">
+                          CER {result.baseline_scores.cer.toFixed(3)}
+                        </em>
+                      )}
+                    </div>
                     <p className="demo-hyp">{result.baseline_transcript}</p>
                   </>
                 )}
-                <div className="demo-result__name">OwnVoice (fine-tuned)</div>
+                <div className="demo-result__name">
+                  OwnVoice (fine-tuned)
+                  {result.scores && (
+                    <em className="demo-cer demo-cer--ours">
+                      CER {result.scores.cer.toFixed(3)}
+                    </em>
+                  )}
+                </div>
                 <p className="demo-hyp demo-hyp--ours">{result.transcript}</p>
 
                 {result.scores && (
@@ -219,6 +325,27 @@ export function Demo() {
           cursor:pointer;text-align:center;font-weight:600;overflow:hidden;
         }
         .demo-file input{display:none}
+        .demo-sample{
+          margin-top:10px;width:100%;padding:0.55em 1em;border:none;border-radius:999px;
+          background:rgba(255,255,255,0.18);color:inherit;font-family:var(--font-body);
+          font-weight:600;font-size:0.85rem;cursor:pointer;transition:background .2s;
+        }
+        .demo-sample:hover{background:rgba(255,255,255,0.3)}
+        .demo-sample__note{margin-top:8px;font-size:0.9rem;font-weight:600;text-align:center}
+        .demo-sample__note span{font-weight:400;opacity:0.8;font-style:italic}
+        .demo-source{margin-top:14px}
+        .demo-toggle{display:flex;gap:6px;background:rgba(0,0,0,0.16);
+          padding:4px;border-radius:999px}
+        .demo-toggle button{flex:1;border:none;background:transparent;color:inherit;
+          font-family:var(--font-body);font-weight:600;font-size:0.82rem;
+          padding:0.5em 0.4em;border-radius:999px;cursor:pointer;transition:background .2s}
+        .demo-toggle button.is-on{background:rgba(255,255,255,0.9);color:var(--ink)}
+        .demo-src-tag{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;
+          opacity:0.75;margin-bottom:6px}
+        .demo-cer{margin-left:8px;font-style:normal;font-weight:700;
+          font-variant-numeric:tabular-nums;padding:1px 7px;border-radius:999px;
+          background:rgba(238,108,52,0.28);letter-spacing:0.02em;text-transform:none}
+        .demo-cer--ours{background:rgba(63,168,91,0.32)}
         .demo-btn{
           margin-top:14px;width:100%;padding:0.85em 1.2em;border:none;border-radius:999px;
           background:rgba(255,255,255,0.94);color:var(--ink);font-family:var(--font-body);

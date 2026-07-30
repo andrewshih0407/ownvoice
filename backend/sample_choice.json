@@ -1,0 +1,9 @@
+{
+  "clean_path": "clean\\cv_zh_tw_000110.wav",
+  "text": "與地主做良性的溝通",
+  "severity": "severe",
+  "baseline_transcript": "與地主做人心的構同。",
+  "tuned_transcript": "與地主做人性的溝通",
+  "baseline_cer": 0.4444,
+  "tuned_cer": 0.1111
+}

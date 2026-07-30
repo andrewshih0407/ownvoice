@@ -18,6 +18,35 @@ Metric choice matters here and differs from the English dysarthria literature:
   initial+final were recognized correctly — isolating tone modelling from
   segmental recognition. Without this split you cannot tell whether the model
   is mishearing the syllable or mishearing the tone.
+
+KNOWN DEFECT IN STER — READ BEFORE CITING IT
+--------------------------------------------
+STER pairs syllables BY POSITION (``zip``), not by alignment. A single
+insertion or deletion shifts the hypothesis relative to the reference, and
+every syllable after that point compares against the wrong reference syllable,
+fails the ``r_seg == h_seg`` guard, and is silently dropped from the
+denominator.
+
+Measured:
+
+    reference 我要買東西  hypothesis 我要賣東西    -> STER 0.222  (correct)
+    reference 我要買東西  hypothesis 我就要買東西  -> STER 0.000  (WRONG:
+                                                     the tone error is real
+                                                     but invisible)
+
+So STER **under-reports** tone errors, and it under-reports *more* on worse
+transcripts, because those contain more insertions and deletions. That biases
+any baseline-vs-tuned comparison in an uncontrolled direction: the weaker model
+has more length mismatches, so more of its tone errors go uncounted.
+
+Consequence: the STER figures in docs/results.md (baseline 0.0528, tuned
+0.0491, and the "tone did not improve" conclusion drawn from them) are
+CONFOUNDED and must not be cited as evidence until this is fixed.
+
+The fix is to align the two syllable sequences with edit distance first — the
+machinery already exists in ``_levenshtein_ops`` — and compare tones only on
+substitution/match pairs from that alignment, rather than on positional pairs.
+CER is unaffected: it uses jiwer, which aligns properly.
 """
 
 from __future__ import annotations

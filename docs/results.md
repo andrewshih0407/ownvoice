@@ -241,6 +241,99 @@ figure, not an intelligibility claim.
 
 ---
 
+## 7. Voice conversion (`src/vc.py`) — NEGATIVE RESULT
+
+After the prior-art review (see `prior-art.md`) the plan was to replace the
+ASR→TTS cascade with LLE voice conversion: Chinese-HuBERT content features,
+nearest-neighbour reconstruction against clean reference speech, HiFi-GAN
+vocoding. Both models MIT-licensed, no training required.
+
+**It does not currently beat leaving the audio alone.**
+
+First evaluation, severe dysarthria, oracle same-speaker reference, n=12:
+
+| | CER | STER | intelligibility | spk sim |
+|---|---|---|---|---|
+| dysarthric | 0.4048 | 0.1507 | 59.5% | 0.887 |
+| converted | 0.4881 | 0.1071 | 51.2% | 0.868 |
+| delta | **+0.0833** | −0.0435 | −8.3% | −0.019 |
+
+Identity was preserved (0.868 > 0.766 threshold) and tone improved, but
+intelligibility got materially worse.
+
+### Diagnosis 1 — the vocoder is not to blame
+
+Round-trip ablation (`ablate_vocoder.py`), mel → waveform with no conversion:
+
+| condition | CER |
+|---|---|
+| clean | 0.3077 |
+| clean → round trip | **0.2885** |
+| dysarthric | 0.5000 |
+| dysarthric → round trip | 0.6538 |
+
+On clean speech the vocoder costs **−0.019 CER** — transparent, marginally
+beneficial (it smooths noise). Since LLE output is assembled from *clean*
+reference mels, it inherits the transparent path, not the degraded one. The
+failure is in the LLE step.
+
+(Note the separate finding that HiFi-GAN badly degrades *dysarthric* audio,
++0.154 CER — it was trained on healthy speech and dysarthric acoustics are out
+of distribution. Not our failure mode here, but relevant to any design that
+vocodes pathological speech directly.)
+
+### Diagnosis 2 — layer choice was a real bug, but not the fix
+
+`content_features` originally used `last_hidden_state`, i.e. layer 24 of 24. In
+self-supervised speech models the deepest layers re-encode acoustic and speaker
+detail while intermediate layers carry speaker-invariant phonetic content, so
+nearest-neighbour search was matching voice texture instead of content.
+
+Layer sweep, severe, oracle reference:
+
+| layer | n=8 ΔCER | n=24 ΔCER |
+|---|---|---|
+| 6 | −0.0238 | **+0.0403** (sign flip) |
+| 9 | +0.0952 | — |
+| 12 | −0.0238 | **−0.0268** (replicated) |
+| 18 | +0.1667 | — |
+| 24 | +0.1190 | — |
+
+Layer 6 reversed sign between sample sizes — the n=8 sweep was measuring noise.
+Layer 12 replicated a modest −0.0268 CER, and `DEFAULT_LAYER` is set to 12.
+
+### Honest status
+
+Best VC configuration gives roughly **−0.027 CER (~6% relative)** — and even
+that comes with STER *worsening* by +0.037, and is measured in **oracle mode**
+using the speaker's own clean recordings, which no real patient has.
+
+Compare the ASR route: **−0.0528 CER overall, −0.1194 on severe**, on a matched
+test set, with no oracle. **The cascade is the working prototype; the VC route is
+not.**
+
+### Why it likely fails here when it worked for the Sinica group
+
+- Their stage-1 winner was VTN, a *trained* seq2seq; LLE was the low-data
+  comparison, not the headline.
+- Their reference was four normal speakers with substantial data. Ours is one
+  speaker, ~13.7k frames.
+- Their dysarthria is real and moderate; our "severe" preset may be more extreme
+  than real severe, pushing Chinese-HuBERT features far out of distribution so
+  neighbour search cannot find the right phonetic content at any layer.
+
+### Next options, in order of expected value
+
+1. Use the **fine-tuned Whisper encoder** as the content extractor — it was
+   explicitly adapted to dysarthric input, unlike Chinese-HuBERT.
+2. Much larger, multi-speaker reference dictionaries.
+3. Train VTN-style seq2seq conversion on our parallel pairs (we have exact
+   clean/dysarthric alignment, which the Sinica group did not).
+4. Test on mild/moderate rather than severe, where features stay in
+   distribution.
+
+---
+
 ### Superseded: the earlier invalid comparison
 
 Baseline was measured on `data/dev2`; training eval used held-out speakers from

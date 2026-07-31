@@ -1,0 +1,65 @@
+# Keeps the Streamlit Community Cloud demo from going to sleep.
+#
+# WHY: free-tier apps idle out after a period with no traffic, and a cold start
+# has to reinstall nothing but does have to re-import torch and re-download
+# ~1 GB of weights on first inference. A judge opening the link cold would sit
+# through "your app is waking up" with no idea how long to wait. We cannot know
+# when judging happens, so the app has to be warm continuously rather than
+# warmed on demand.
+#
+# HOW: a scheduled request every 10 minutes. The request completes Streamlit's
+# session-cookie handshake (-L -c/-b), because a bare request without cookies
+# only gets the redirect chain and may not register as real traffic.
+#
+# LIMITS, honestly: GitHub's scheduled runners are best-effort and can be
+# delayed under load, so the true interval drifts above 10 minutes. This resets
+# the inactivity timer but is not a contract with Streamlit — they can still
+# recycle a container. It makes a cold hit much less likely, not impossible.
+
+name: keep demo awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # so it can be triggered by hand before a known demo slot
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the Streamlit app
+        run: |
+          URL="https://appapppy-m7fpkveuhxbkxapu2bbkdg.streamlit.app"
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+          JAR="$(mktemp)"
+
+          # Establish a session, then hit the app-level health endpoint. The
+          # app container serves /~/+/_stcore/health only once the Python
+          # process is actually up, so this distinguishes "awake" from "the
+          # proxy answered".
+          curl -sS -L -m 60 -A "$UA" -c "$JAR" -b "$JAR" -o /dev/null "$URL/" || true
+
+          code="$(curl -sS -L -m 60 -A "$UA" -c "$JAR" -b "$JAR" \
+                   -o /dev/null -w '%{http_code}' "$URL/~/+/_stcore/health" || echo 000)"
+          echo "app health: $code"
+
+          if [ "$code" = "200" ]; then
+            echo "App is awake."
+            exit 0
+          fi
+
+          # A non-200 usually means the ping arrived mid-wake. Give it time and
+          # retry once so a slow boot is not reported as a failure.
+          echo "Not healthy yet; waiting for wake-up and retrying once."
+          sleep 90
+          code="$(curl -sS -L -m 60 -A "$UA" -c "$JAR" -b "$JAR" \
+                   -o /dev/null -w '%{http_code}' "$URL/~/+/_stcore/health" || echo 000)"
+          echo "app health after retry: $code"
+
+          # Do not fail the workflow on a bad ping. A red X every 10 minutes
+          # trains you to ignore it, and this job is a nicety, not a gate.
+          [ "$code" = "200" ] || echo "::warning::App did not report healthy (got $code)."

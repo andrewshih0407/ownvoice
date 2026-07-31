@@ -61,6 +61,23 @@ LANGS = {
 }
 
 
+@st.cache_resource(show_spinner=False)
+def simulator_available() -> bool:
+    """True when live simulation of arbitrary audio is possible on this host.
+
+    pyworld builds from C at install time and that build fails on Streamlit
+    Community Cloud, so this is False in production and True locally. Cached
+    because the answer cannot change within a process and the import is not
+    free.
+    """
+    try:
+        from dysarthria_sim import pyworld_available
+
+        return bool(pyworld_available())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def prerendered(slug: str, severity: str) -> Path:
     """Degraded audio for the built-in sample clips, rendered ahead of time.
 
@@ -361,40 +378,53 @@ with col_in:
         key=ref_key,
     )
 
-    if st.button("Simulate dysarthria", type="primary", use_container_width=True,
-                 disabled=not audio):
-        try:
-            from dysarthria_sim import analyze, perturb, pyworld_available
+    # Whether simulation can actually run for THIS audio, decided before the
+    # button is drawn. A control that is present but always fails is worse than
+    # no control, so when it cannot work it is not offered at all.
+    ready = prerendered(lang["slug"], severity)
+    is_sample = bool(st.session_state.get("is_sample"))
+    # With no audio yet the button still shows, disabled — it is how a visitor
+    # learns the three-step flow. It is only withheld once there is audio that
+    # genuinely cannot be degraded here, since that is the case where clicking
+    # could never succeed.
+    can_simulate = (is_sample and ready.exists()) or simulator_available()
 
-            ready = prerendered(lang["slug"], severity)
-            # Prefer the shipped render for the built-in clip. It is the same
-            # code path and seed, and it keeps this step alive where pyworld
-            # could not be built.
-            if st.session_state.get("is_sample") and ready.exists():
-                st.session_state["sim"] = ready.read_bytes()
-                st.session_state["sim_sev"] = severity
-                st.session_state.pop("result", None)
-            elif not pyworld_available():
-                st.error(
-                    "The simulator needs pyworld, which could not be built on "
-                    "this host, so uploaded audio cannot be degraded here. "
-                    "Use the sample clip above — its degraded versions ship "
-                    "with the app — or run the app locally, where this works."
-                )
-            else:
-                with st.spinner(f"Degrading to {severity}…"):
-                    y = read_audio(audio)
-                    f0, sp, ap = analyze(
-                        np.ascontiguousarray(y.astype(np.float64)), TARGET_SR
-                    )
-                    out = perturb(f0, sp, ap, TARGET_SR, severity=severity, seed=0)
-                    buf = io.BytesIO()
-                    sf.write(buf, out, TARGET_SR, format="WAV", subtype="PCM_16")
-                    st.session_state["sim"] = buf.getvalue()
+    if can_simulate or not audio:
+        if st.button("Simulate dysarthria", type="primary",
+                     use_container_width=True,
+                     disabled=not (audio and can_simulate)):
+            try:
+                if is_sample and ready.exists():
+                    # Same code path and seed as the live simulator, rendered
+                    # ahead of time so this step survives hosts where pyworld
+                    # cannot be built.
+                    st.session_state["sim"] = ready.read_bytes()
                     st.session_state["sim_sev"] = severity
                     st.session_state.pop("result", None)
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Simulation failed: {exc}")
+                else:
+                    from dysarthria_sim import analyze, perturb
+
+                    with st.spinner(f"Degrading to {severity}…"):
+                        y = read_audio(audio)
+                        f0, sp, ap = analyze(
+                            np.ascontiguousarray(y.astype(np.float64)), TARGET_SR
+                        )
+                        out = perturb(
+                            f0, sp, ap, TARGET_SR, severity=severity, seed=0
+                        )
+                        buf = io.BytesIO()
+                        sf.write(buf, out, TARGET_SR, format="WAV", subtype="PCM_16")
+                        st.session_state["sim"] = buf.getvalue()
+                        st.session_state["sim_sev"] = severity
+                        st.session_state.pop("result", None)
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Simulation failed: {exc}")
+    elif audio and not is_sample:
+        st.caption(
+            "Uploaded audio cannot be degraded on this host, so the simulator "
+            "step is not offered for it. Your clip can still be transcribed. "
+            "To hear the degradation, use the sample clip above."
+        )
 
     if st.session_state.get("sim"):
         st.markdown(f"**Simulated · {st.session_state['sim_sev']}**")

@@ -37,6 +37,121 @@ SAMPLE_TEXT = "與地主做良性的溝通"
 
 st.set_page_config(page_title="OwnVoice — live demo", page_icon="🗣", layout="wide")
 
+# ----------------------------------------------------------------------------
+# Styling only — no functional change below this block. Matches the palette,
+# type and pill/tile shapes defined in site/src/styles/global.css so this page
+# reads as the same product as the React site rather than default Streamlit
+# gray. config.toml sets the base colors; everything Streamlit's theme system
+# cannot reach (fonts, radii, tile-style panels) is layered on here.
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Figtree:wght@400;500;600;700&display=swap');
+
+    :root {
+        --cream: #f4efe6;
+        --cream-2: #efe7d9;
+        --ink: #14110f;
+        --ink-soft: #4a443d;
+        --cobalt: #3e6be0;
+        --marigold: #f4b024;
+        --tangerine: #ee6c34;
+        --grass: #3fa85b;
+        --violet: #8a5cf6;
+        --sky: #62c6e8;
+    }
+
+    html, body, [class*="css"] {
+        font-family: 'Figtree', system-ui, sans-serif;
+    }
+
+    /* Match the site's dark hero band behind the page chrome. */
+    [data-testid="stAppViewContainer"] {
+        background: var(--cream);
+    }
+    [data-testid="stHeader"] {
+        background: transparent;
+    }
+    [data-testid="stSidebar"] {
+        background: #0b0a10;
+        color: var(--cream);
+    }
+    [data-testid="stSidebar"] * {
+        color: var(--cream) !important;
+    }
+
+    h1, h2, h3 {
+        font-family: 'Archivo', system-ui, sans-serif !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+    }
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: var(--cream);
+    }
+
+    /* Pill buttons, matching .btn in the site. */
+    .stButton > button, .stDownloadButton > button {
+        border-radius: 999px !important;
+        font-family: 'Figtree', sans-serif;
+        font-weight: 600;
+        border: none !important;
+        background: var(--ink) !important;
+        color: var(--cream) !important;
+        transition: background .2s ease;
+    }
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        background: var(--cobalt) !important;
+        color: #fff !important;
+    }
+    .stButton > button[kind="primary"] {
+        background: var(--cobalt) !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: var(--tangerine) !important;
+    }
+
+    /* Metric tiles: acrylic block instead of Streamlit's bare numbers. */
+    [data-testid="stMetric"] {
+        background: var(--cobalt);
+        border-radius: 18px;
+        padding: 14px 18px;
+        color: #fff;
+    }
+    [data-testid="stMetric"] label,
+    [data-testid="stMetricValue"] {
+        color: #fff !important;
+    }
+
+    /* Info/success/warning callouts, softened to the tile palette. */
+    [data-testid="stAlertContainer"], .stAlert {
+        border-radius: 18px !important;
+    }
+
+    /* File uploader and text inputs, rounded to match .demo-file / .demo-select. */
+    [data-testid="stFileUploaderDropzone"] {
+        border-radius: 14px !important;
+        border: 2px dashed var(--ink-soft) !important;
+    }
+    .stTextInput input, .stTextArea textarea {
+        border-radius: 12px !important;
+        font-family: 'Figtree', sans-serif !important;
+    }
+
+    /* Slider handle in cobalt rather than Streamlit's default red. */
+    [data-testid="stSlider"] [role="slider"] {
+        background-color: var(--cobalt) !important;
+    }
+    [data-baseweb="slider"] div[style*="background-color"] {
+        background-color: var(--cobalt) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # --------------------------------------------------------------------------
 # Loading. Cached so a rerun does not re-download ~1 GB.

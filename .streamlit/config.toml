@@ -1,0 +1,13 @@
+# Base Streamlit theme, matched to the acrylic-on-cream palette used across
+# site/src/styles/global.css. Streamlit's theme engine only covers a handful
+# of colors and a generic font keyword — the finer match (Archivo/Figtree,
+# pill buttons, tile-style cards) is done with a CSS injection in
+# streamlit_app.py, since config.toml alone can't reach that level of detail.
+
+[theme]
+base = "light"
+primaryColor = "#3e6be0"
+backgroundColor = "#f4efe6"
+secondaryBackgroundColor = "#efe7d9"
+textColor = "#14110f"
+font = "sans serif"

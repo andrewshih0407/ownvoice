@@ -1,0 +1,4 @@
+﻿source=librispeech_en  language=en  tonal=False  license=CC-BY-4.0  streaming=openslr/librispeech_asr
+NOTE: non-tonal language — TER/STER are meaningless on this corpus. Report CER/WER only.
+audio columns (decode disabled): ['audio']
+stream shuffled (buffer=3000)

@@ -44,6 +44,8 @@ SOURCES = {
         text_col="sentence",
         speaker_col="client_id",
         license="CC0-1.0",
+        language="zh",
+        tonal=True,
     ),
     "aishell3": dict(
         repo="AISHELL/AISHELL-3",
@@ -51,6 +53,28 @@ SOURCES = {
         text_col="transcription",
         speaker_col="speaker",
         license="Apache-2.0",
+        language="zh",
+        tonal=True,
+    ),
+    # English. Same pipeline, different corpus — the simulator is acoustic, not
+    # linguistic, so it applies unchanged. Measured separately because the
+    # Mandarin fine-tune did NOT transfer its dysarthria gain to English
+    # (severe WER 0.290 stock vs 0.295 tuned), which is why English needs its
+    # own model rather than a shared one. See src/test_english.py.
+    #
+    # NOTE ON LIBRISPEECH TEXT: references are fully spelled out ("mister",
+    # "one hundred") while Whisper emits standard orthography ("mr", "100").
+    # Scoring against them without a matching text normalizer inflates WER
+    # several-fold. Train and evaluate within one convention, and do not
+    # compare these numbers to published LibriSpeech results.
+    "librispeech_en": dict(
+        repo="openslr/librispeech_asr",
+        config="clean",
+        text_col="text",
+        speaker_col="speaker_id",
+        license="CC-BY-4.0",
+        language="en",
+        tonal=False,
     ),
 }
 
@@ -84,6 +108,7 @@ class Manifest:
         dys: np.ndarray,
         severity: str,
         speaker: str,
+        language: str = "zh",
     ) -> None:
         clean_p = self.root / "clean" / f"{uid}.wav"
         dys_p = self.root / "dys" / f"{uid}__{severity}.wav"
@@ -99,6 +124,9 @@ class Manifest:
             "speaker": speaker,
             "duration": round(len(dys) / TARGET_SR, 3),
             "simulated": True,
+            # Carried so downstream code can pick the right decoder language
+            # and skip tone metrics on non-tonal corpora.
+            "language": language,
         }
         self.rows.append(row)
         self._fh.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -174,7 +202,16 @@ def build(
             "tone hypothesis. Install pyworld before building data."
         )
 
-    print(f"source={source}  license={spec['license']}  streaming={spec['repo']}")
+    print(
+        f"source={source}  language={spec.get('language','zh')}  "
+        f"tonal={spec.get('tonal', True)}  license={spec['license']}  "
+        f"streaming={spec['repo']}"
+    )
+    if not spec.get("tonal", True):
+        print(
+            "NOTE: non-tonal language — TER/STER are meaningless on this corpus. "
+            "Report CER/WER only."
+        )
     ds = load_dataset(spec["repo"], spec["config"], split=split, streaming=True)
 
     # Hand decoding to soundfile instead of datasets/torchcodec. EVERY Audio
@@ -265,7 +302,10 @@ def _consume(
         f0, sp, ap = analyze(np.ascontiguousarray(y), TARGET_SR)
         for sev in severities:
             dys = perturb(f0, sp, ap, TARGET_SR, severity=sev, seed=seed + i)
-            man.add(uid, text, y.astype(np.float32), dys, sev, speaker)
+            man.add(
+                uid, text, y.astype(np.float32), dys, sev, speaker,
+                language=spec.get("language", "zh"),
+            )
 
         kept += 1
         if kept % 100 == 0:

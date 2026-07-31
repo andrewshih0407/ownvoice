@@ -36,8 +36,21 @@ from metrics import score_corpus
 TARGET_SR = 16_000
 
 
-def normalize(text: str) -> str:
-    """Traditional Chinese, punctuation stripped. Must match baseline.py."""
+def normalize(text: str, language: str = "zh") -> str:
+    """Normalize a transcript for scoring. Must match baseline.py/evaluate.py.
+
+    Chinese: Traditional, punctuation stripped.
+    English: lowercased, punctuation stripped. This does NOT reconcile
+    LibriSpeech's spelled-out convention ("mister", "one hundred") with
+    Whisper's orthography ("mr", "100"), which inflates English WER several
+    times over. Fine for comparing two models on identical data; not
+    comparable to published LibriSpeech numbers.
+    """
+    if language != "zh":
+        cleaned = "".join(
+            c for c in (text or "").lower() if c.isalnum() or c.isspace()
+        )
+        return " ".join(cleaned.split())
     text = zhconv.convert(text or "", "zh-tw")
     drop = " \t\n，。、？！：；「」『』（）,.?!:;\"'()《》…—-·"
     return "".join(c for c in text if c not in drop)
@@ -127,7 +140,7 @@ def build_splits(
     return train, evl
 
 
-def to_dataset(rows: list[dict], root: Path, processor):
+def to_dataset(rows: list[dict], root: Path, processor, language: str = "zh"):
     from datasets import Dataset
 
     def gen():
@@ -138,7 +151,9 @@ def to_dataset(rows: list[dict], root: Path, processor):
             feats = processor.feature_extractor(
                 y, sampling_rate=sr, return_tensors="np"
             ).input_features[0]
-            labels = processor.tokenizer(normalize(r["text"])).input_ids
+            labels = processor.tokenizer(
+                normalize(r["text"], language)
+            ).input_ids
             yield {"input_features": feats, "labels": labels}
 
     return Dataset.from_generator(gen)
@@ -159,6 +174,7 @@ def main(
     include_clean: bool = True,
     max_eval: int = 200,
     resume: str | None = None,
+    language: str = "zh",
 ) -> None:
     from transformers import (
         Seq2SeqTrainer,
@@ -176,13 +192,17 @@ def main(
             "real run.\nUse --max-steps 2 to smoke-test the code path only."
         )
 
+    # The decoder language must match the corpus, or the model is trained to
+    # emit the wrong script. Whisper's processor wants the long name.
+    long_name = {"zh": "chinese", "en": "english"}.get(language, language)
+    print(f"language={language} ({long_name})")
     processor = WhisperProcessor.from_pretrained(
-        model_id, language="chinese", task="transcribe"
+        model_id, language=long_name, task="transcribe"
     )
     model = WhisperForConditionalGeneration.from_pretrained(model_id)
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
-    model.generation_config.language = "zh"
+    model.generation_config.language = language
     model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
     # Same loop suppression that fixed CER > 1.0 in the baseline.
@@ -204,8 +224,8 @@ def main(
             bucketed.setdefault(r["condition"], []).append(r)
         eval_rows = [r for rs in bucketed.values() for r in rs[:per_cond]]
         print(f"eval capped to {len(eval_rows)} rows ({per_cond}/condition)")
-    train_ds = to_dataset(train_rows, root, processor)
-    eval_ds = to_dataset(eval_rows, root, processor)
+    train_ds = to_dataset(train_rows, root, processor, language)
+    eval_ds = to_dataset(eval_rows, root, processor, language)
 
     def compute_metrics(pred):
         label_ids = pred.label_ids
@@ -215,7 +235,10 @@ def main(
             pred.predictions, skip_special_tokens=True
         )
         s = score_corpus(
-            [(normalize(r), normalize(h)) for r, h in zip(refs, hyps)]
+            [
+                (normalize(r, language), normalize(h, language))
+                for r, h in zip(refs, hyps)
+            ]
         )
         return {
             "cer": round(s.cer, 4),
@@ -304,6 +327,12 @@ if __name__ == "__main__":
         default=None,
         help="path to a checkpoint-N dir to continue training from",
     )
+    ap.add_argument(
+        "--language",
+        default="zh",
+        choices=["zh", "en"],
+        help="decoder language; must match the corpus the manifest was built from",
+    )
     a = ap.parse_args()
     main(
         root=a.root,
@@ -319,4 +348,5 @@ if __name__ == "__main__":
         include_clean=not a.no_clean,
         max_eval=a.max_eval,
         resume=a.resume_from_checkpoint,
+        language=a.language,
     )

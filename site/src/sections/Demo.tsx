@@ -156,6 +156,13 @@ export function Demo() {
           way dysarthria does, so you can hear what the model is up against —
           then the fine-tuned recogniser transcribes it beside stock Whisper.
         </Reveal>
+        <Reveal as="p" className="lead" delay={110} style={{ maxWidth: "62ch", marginBottom: "0.6em" }}>
+          The live demo also has an English mode. It runs general-purpose
+          Whisper rather than an adapted model: we trained an English
+          counterpart on the same simulator and it did not beat stock Whisper
+          on matched, speaker-disjoint word error rate, so we report that
+          instead of shipping it. The adaptation result here is Mandarin.
+        </Reveal>
 
         {/* Public visitors get the embedded live model. The local-API controls
             below only appear when a backend is actually reachable. */}

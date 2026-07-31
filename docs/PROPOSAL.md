@@ -12,6 +12,41 @@ Theme: *Digital Inclusion in the AI Era*
 
 ---
 
+## How to use this document
+
+The four sections below are the **judging criteria** (handbook §III, Evaluation
+Focus). The actual online form asks for *numbered fields*. This table maps one
+to the other so each box can be filled from the section that answers it.
+
+| form field | source section |
+|---|---|
+| 2(1) Project Name | title |
+| 2(2) Project Introduction *(detail AI usage)* | §2 "What it does" + "AI models" |
+| 2(3) Corresponding SDGs | SDG 3, SDG 10, SDG 9 — below |
+| 2(4) Problem to be resolved and its importance | §1 entire |
+| 2(5) Related stakeholders and their roles | §4 "Primary/secondary audience" |
+| 2(6) Description of solution functions | §2 "What it does" (the 4 numbered steps) |
+| 2(7) Differences from existing solutions | §2 "Technical innovation" + "The finding that defines the project" |
+| 2(8) Expected benefits *(quantifiable)* | §2 "Results" table + §4 scale figures |
+| 3(1) Development stage | §3 "Completed" / "In progress" |
+| 3(2) Project adjustments if sold externally | N/A — never sold or submitted elsewhere |
+| 3(3) Project link or demonstration video | the three links above |
+| 3(4) Existing validation fields | §3 — technical only, **no public-sector or clinical validation** |
+| 3(5) Existing validation results | §2 "Results" table, with both limitations stated |
+| 4(1) Promotion/marketing plan | §3 "Long-term strategy" |
+| 4(2) Engaged collaboration units | none yet |
+| 4(3) Future planned collaboration units | §3 Phase 3 |
+| 5(1) Open data sources used | §2 "Open data" table |
+| 5(2) Suggestions for modifying Taiwan's open data | appendix below |
+| 5(3) Provision of open data | appendix below |
+| 6 Open-source software design | appendix below |
+
+**SDGs (form field 2(3)):** SDG 3 *Good Health and Well-being* (3.4, 3.8);
+SDG 10 *Reduced Inequalities* (10.2, inclusion irrespective of disability);
+SDG 9 *Industry, Innovation and Infrastructure* (9.5, research capability).
+
+---
+
 # 1. Application Scenario & Problem Statement
 
 ## The scenario
@@ -331,3 +366,52 @@ one Taiwanese hospital's head-and-neck oncology department.
 **Long term** — nobody loses access to digital services because of how they
 speak. Not because the technology got more tolerant, but because it learned to
 listen properly.
+
+---
+
+# Appendix — remaining form fields
+
+## 5(2) Suggestions for modifying Taiwan's open data
+
+1. **The cancer registry records incidence and mortality, but not functional
+   outcome.** Whether an oral-cancer patient retained intelligible speech after
+   treatment appears nowhere public, so the population needing speech
+   restoration cannot be sized from open data at all. Adding a speech-function
+   field to post-treatment follow-up would make this quantifiable — and would
+   benefit every assistive-communication project in Taiwan, not only ours.
+2. **There is no open Taiwanese-Mandarin pathological speech corpus.** Every
+   dysarthria corpus available to us is foreign: PRC-recorded (MDSC, CDSD),
+   Italian (EasyCall), or English (TORGO, UASpeech). Taiwan funds substantial
+   speech research, and a de-identified, consented, Taiwan-recorded corpus
+   would be the single highest-value contribution the government could make to
+   this field. Accent and dialect matter: models trained on PRC Mandarin
+   transfer imperfectly to Taiwan-accented speech.
+3. **Assistive-device subsidy data is published only in aggregate.**
+   Device-level uptake would reveal where communication aids are failing to
+   reach people who qualify for them.
+
+## 5(3) Provision of open data
+
+We redistribute no audio. Instead the corpus is **reproducible**: `src/data.py`
+regenerates the entire training set from Common Voice zh-TW (CC0) with one
+command, so anyone can rebuild it exactly rather than trusting our copy.
+
+Open for reuse at https://github.com/andrewshih0407/ownvoice:
+
+- the dysarthria simulator and its acoustic validation harness
+- **STER**, the segmental tone error rate implementation, with regression tests
+- the full evaluation harness, including the negative results
+
+## 6 Open-source software design
+
+**(1) Does the project use open-source software?** Yes, throughout — PyTorch,
+Hugging Face Transformers, Whisper, WavLM, Chinese-HuBERT, pyworld, librosa,
+FastAPI, React, Vite, three.js, GSAP.
+
+**(2) What percentage?** Effectively 100%. No proprietary or paid API is used
+at any stage, and the entire pipeline runs on openly licensed models and data
+on a single consumer GPU.
+
+**(3) Willing to open-source in future?** Already done. MIT licence for the
+code, published before submission, including the failed voice-conversion
+experiment and the metric bug we found in our own work.

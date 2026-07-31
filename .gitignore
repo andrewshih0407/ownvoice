@@ -47,3 +47,6 @@ backend/prod.log
 backend/guard.log
 backend/guard.err
 backend/_testcase.json
+streamlit_local.log
+data_en_build.log
+runs/train_en.log

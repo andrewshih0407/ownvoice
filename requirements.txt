@@ -5,15 +5,27 @@
 # For deployment only, backend/requirements.txt is a leaner set (no datasets,
 # no accelerate, no training path).
 #
-# TORCH: this file installs the default build, which is CUDA on Linux/Windows
-# and several GB. For CPU-only machines install torch first from the CPU index,
-# then this file:
+# TORCH IS PINNED TO THE CPU BUILD ON PURPOSE.
 #
-#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Streamlit Community Cloud reads this file and is resource-limited; the
+# default PyPI torch wheel bundles ~2.5 GB of CUDA libraries that are useless
+# there and would blow the limit. The `+cpu` local version, together with the
+# extra index below, forces the CPU wheel deterministically.
+#
+# ON A GPU MACHINE, install CUDA torch FIRST and it will be kept:
+#
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu124
 #   pip install -r requirements.txt
+#
+# pip will not downgrade an already-satisfied torch, so an existing CUDA
+# install survives this file.
 
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.4
 torchaudio>=2.4
+
+# Live demo UI (Streamlit Community Cloud entry point is streamlit_app.py)
+streamlit>=1.38
 
 # Models and training. `accelerate` is required by transformers' Seq2SeqTrainer
 # even though nothing imports it directly — training fails without it.

@@ -30,10 +30,31 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
 TARGET_SR = 16_000
-TUNED_MODEL = "anonymous6623/ownvoice-asr"
 BASE_MODEL = "openai/whisper-small"
-SAMPLE = ROOT / "site" / "public" / "samples" / "sample-clean.wav"
-SAMPLE_TEXT = "與地主做良性的溝通"
+TUNED_MODEL_ZH = "anonymous6623/ownvoice-asr"
+
+# There is no TUNED_MODEL_EN. A dedicated English fine-tune was trained
+# (runs/asr_en) and evaluated with matched, speaker-disjoint WER — the metric
+# that actually reflects word-level accuracy, unlike the CER used during
+# training which flatters English. Result: WER went from 5.66% (stock
+# Whisper) to 6.04% (fine-tuned) overall, i.e. no improvement, and specifically
+# worse on severe dysarthria (-11.3% relative). So English here runs stock
+# Whisper only, and says so, rather than presenting an ineffective checkpoint
+# as if it were the Mandarin result's counterpart.
+LANGS = {
+    "Mandarin": {
+        "code": "zh",
+        "sample": ROOT / "site" / "public" / "samples" / "sample-clean.wav",
+        "sample_text": "與地主做良性的溝通",
+        "tonal": True,
+    },
+    "English": {
+        "code": "en",
+        "sample": ROOT / "site" / "public" / "samples" / "sample-clean-en.wav",
+        "sample_text": "ALL RIGHT SIT DOWN MY FRIENDS",
+        "tonal": False,
+    },
+}
 
 st.set_page_config(page_title="OwnVoice — live demo", page_icon="🗣", layout="wide")
 
@@ -170,13 +191,22 @@ def load_asr(model_id: str):
     )
 
 
-def normalize(text: str) -> str:
+def normalize_zh(text: str) -> str:
     """Must match src/metrics.py usage elsewhere, or scores are not comparable."""
     import zhconv
 
     text = zhconv.convert(text or "", "zh-tw")
     drop = " \t\n，。、？！：；「」『』（）,.?!:;\"'()《》…—-·"
     return "".join(c for c in text if c not in drop)
+
+
+def normalize_en(text: str) -> str:
+    """Matches the jiwer.Compose transform used in src/evaluate_english.py."""
+    import re
+
+    text = (text or "").lower().strip()
+    text = re.sub(r"[^\w\s]", "", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def read_audio(data: bytes) -> np.ndarray:
@@ -194,11 +224,11 @@ def read_audio(data: bytes) -> np.ndarray:
     return (y / peak * 0.95).astype(np.float32)
 
 
-def transcribe(pipe, y: np.ndarray) -> str:
+def transcribe(pipe, y: np.ndarray, language_code: str) -> str:
     out = pipe(
         {"raw": y, "sampling_rate": TARGET_SR},
         generate_kwargs={
-            "language": "zh",
+            "language": language_code,
             "task": "transcribe",
             # Degraded speech sends Whisper into repetition loops that produced
             # CER above 1.0 during evaluation. These are what fixed it.
@@ -212,23 +242,43 @@ def transcribe(pipe, y: np.ndarray) -> str:
 # --------------------------------------------------------------------------
 st.title("OwnVoice — live demo")
 st.caption(
-    "Tone-aware speech recognition for Mandarin speakers with dysarthria · "
+    "Tone-aware speech recognition for Mandarin and English speakers with "
+    "dysarthria · "
     "[project site](https://anonymous6623-ownvoice.static.hf.space) · "
     "[code](https://github.com/andrewshih0407/ownvoice)"
 )
 
-st.info(
-    "**In Mandarin, tone is the word.** 統一 (tǒng yī, *unify*) and 同一 "
-    "(tóng yī, *the same*) differ by one tone and mean different things. "
-    "Dysarthria flattens the pitch contour that carries tone — so a mistoned "
-    "syllable is not an accent, it is a different word.",
-    icon="🗣",
-)
+lang_name = st.radio("Language", list(LANGS.keys()), horizontal=True)
+lang = LANGS[lang_name]
+
+if lang["tonal"]:
+    st.info(
+        "**In Mandarin, tone is the word.** 統一 (tǒng yī, *unify*) and 同一 "
+        "(tóng yī, *the same*) differ by one tone and mean different things. "
+        "Dysarthria flattens the pitch contour that carries tone — so a "
+        "mistoned syllable is not an accent, it is a different word. The "
+        "model below is fine-tuned and measurably reduces character error "
+        "rate over stock Whisper.",
+        icon="🗣",
+    )
+else:
+    st.warning(
+        "**English here runs stock Whisper, not a dysarthria-tuned model.** "
+        "We trained one (LibriSpeech + the same six-perturbation simulator "
+        "used for Mandarin) and evaluated it with matched, speaker-disjoint "
+        "word error rate — the metric that actually reflects English "
+        "accuracy, since character error rate flatters it. Result: WER "
+        "5.66% → 6.04%, i.e. no improvement, and specifically worse on "
+        "severe dysarthria (-11.3% relative). We are not shipping that "
+        "checkpoint as if it matched the Mandarin result. This is genuinely "
+        "unsolved, not hidden.",
+        icon="⚠️",
+    )
 
 with st.sidebar:
     st.header("How to use")
     st.markdown(
-        "1. Load the sample, or upload clear Mandarin speech\n"
+        f"1. Load the sample, or upload clear {lang_name} speech\n"
         "2. **Simulate** dysarthria — hear the problem\n"
         "3. **Transcribe** the degraded audio"
     )
@@ -236,7 +286,10 @@ with st.sidebar:
         "Severity", options=["mild", "moderate", "severe"], value="severe"
     )
     compare = st.checkbox(
-        "Also run stock Whisper (slower, more memory)", value=True
+        "Also run stock Whisper (slower, more memory)",
+        value=True,
+        disabled=not lang["tonal"],
+        help=None if lang["tonal"] else "English only has stock Whisper — nothing to compare against.",
     )
     st.divider()
     st.caption(
@@ -252,23 +305,35 @@ col_in, col_out = st.columns(2, gap="large")
 
 with col_in:
     st.subheader("1 · Input")
-    upload = st.file_uploader("Mandarin audio (WAV/FLAC/MP3)", type=["wav", "flac", "mp3"])
+    upload = st.file_uploader(
+        f"{lang_name} audio (WAV/FLAC/MP3)", type=["wav", "flac", "mp3"], key=f"upload_{lang_name}"
+    )
+
+    ref_key = f"reference_{lang_name}"
 
     use_sample = st.button("Use our sample clip", use_container_width=True)
-    if use_sample and SAMPLE.exists():
-        st.session_state["audio"] = SAMPLE.read_bytes()
-        st.session_state["reference"] = SAMPLE_TEXT
+    if use_sample and lang["sample"].exists():
+        st.session_state["audio"] = lang["sample"].read_bytes()
+        st.session_state["audio_lang"] = lang_name
+        st.session_state[ref_key] = lang["sample_text"]
     if upload is not None:
         st.session_state["audio"] = upload.read()
+        st.session_state["audio_lang"] = lang_name
 
     audio = st.session_state.get("audio")
-    if audio:
+    if audio and st.session_state.get("audio_lang") == lang_name:
         st.audio(audio)
+    else:
+        audio = None
 
+    # No `value=` here on purpose: once a widget has an explicit `key`,
+    # Streamlit only honors `value` on that key's very first mount, and
+    # silently ignores it after — session_state[key] is the supported way to
+    # set it programmatically (e.g. from the sample-clip button) afterwards.
     reference = st.text_input(
         "Reference text (optional — enables scoring)",
-        value=st.session_state.get("reference", ""),
-        placeholder=SAMPLE_TEXT,
+        placeholder=lang["sample_text"],
+        key=ref_key,
     )
 
     if st.button("Simulate dysarthria", type="primary", use_container_width=True,
@@ -311,15 +376,24 @@ with col_out:
             y = read_audio(data)
             results = {}
 
-            if compare:
-                with st.spinner("Stock Whisper… (first run downloads weights)"):
-                    results["Stock Whisper"] = transcribe(load_asr(BASE_MODEL), y)
-            with st.spinner("OwnVoice fine-tuned…"):
-                results["OwnVoice (fine-tuned)"] = transcribe(
-                    load_asr(TUNED_MODEL), y
-                )
+            if lang["tonal"]:
+                if compare:
+                    with st.spinner("Stock Whisper… (first run downloads weights)"):
+                        results["Stock Whisper"] = transcribe(
+                            load_asr(BASE_MODEL), y, lang["code"]
+                        )
+                with st.spinner("OwnVoice fine-tuned…"):
+                    results["OwnVoice (fine-tuned)"] = transcribe(
+                        load_asr(TUNED_MODEL_ZH), y, lang["code"]
+                    )
+            else:
+                with st.spinner("Whisper (English)… (first run downloads weights)"):
+                    results["Whisper (English, general-purpose)"] = transcribe(
+                        load_asr(BASE_MODEL), y, lang["code"]
+                    )
 
             st.session_state["result"] = results
+            st.session_state["result_lang"] = lang_name
         except Exception as exc:  # noqa: BLE001
             st.error(
                 f"Transcription failed: {exc}\n\n"
@@ -328,46 +402,76 @@ with col_out:
             )
 
     results = st.session_state.get("result")
-    if results:
+    if results and st.session_state.get("result_lang") == lang_name:
         scored = bool(reference.strip())
-        if scored:
-            from metrics import score
 
-        for name, text in results.items():
-            ours = name.startswith("OwnVoice")
-            st.markdown(f"**{name}**")
+        if lang["tonal"]:
             if scored:
-                s = score(normalize(reference), normalize(text))
-                c1, c2, c3 = st.columns(3)
-                c1.metric("CER", f"{s.cer:.3f}")
-                c2.metric("STER", f"{s.ster:.3f}")
-                c3.metric("Intelligible", f"{s.intelligibility:.1f}%")
-            st.success(text) if ours else st.warning(text)
+                from metrics import score
 
-        if scored and len(results) == 2:
-            from metrics import score
+            for name, text in results.items():
+                ours = name.startswith("OwnVoice")
+                st.markdown(f"**{name}**")
+                if scored:
+                    s = score(normalize_zh(reference), normalize_zh(text))
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("CER", f"{s.cer:.3f}")
+                    c2.metric("STER", f"{s.ster:.3f}")
+                    c3.metric("Intelligible", f"{s.intelligibility:.1f}%")
+                if ours:
+                    st.success(text)
+                else:
+                    st.warning(text)
 
-            base = score(normalize(reference), normalize(results["Stock Whisper"]))
-            tuned = score(
-                normalize(reference), normalize(results["OwnVoice (fine-tuned)"])
-            )
-            delta = base.cer - tuned.cer
-            if delta > 0.005:
-                st.info(f"Fine-tuning reduced CER by **{delta:.3f}** on this clip.")
-            elif delta < -0.005:
-                st.warning(
-                    f"Stock Whisper did **better** on this clip by {-delta:.3f} CER. "
-                    "Per-clip results vary; the corpus average is a 27.7% relative "
-                    "reduction."
+            if scored and len(results) == 2:
+                from metrics import score
+
+                base = score(normalize_zh(reference), normalize_zh(results["Stock Whisper"]))
+                tuned = score(
+                    normalize_zh(reference), normalize_zh(results["OwnVoice (fine-tuned)"])
                 )
-            else:
-                st.info("Both models scored the same on this clip.")
+                delta = base.cer - tuned.cer
+                if delta > 0.005:
+                    st.info(f"Fine-tuning reduced CER by **{delta:.3f}** on this clip.")
+                elif delta < -0.005:
+                    st.warning(
+                        f"Stock Whisper did **better** on this clip by {-delta:.3f} CER. "
+                        "Per-clip results vary; the corpus average is a 27.7% relative "
+                        "reduction."
+                    )
+                else:
+                    st.info("Both models scored the same on this clip.")
+        else:
+            import jiwer
+
+            for name, text in results.items():
+                st.markdown(f"**{name}**")
+                if scored:
+                    wer = jiwer.wer(normalize_en(reference), normalize_en(text))
+                    c1, c2 = st.columns(2)
+                    c1.metric("WER", f"{wer:.3f}")
+                    c2.metric("Word accuracy", f"{(1 - wer) * 100:.1f}%")
+                st.warning(text)
+            st.caption(
+                "No fine-tuned comparison here — see the notice above. This "
+                "is the same general-purpose Whisper model whether or not "
+                "the audio was degraded."
+            )
 
 st.divider()
-st.caption(
-    "Measured on a matched test set with speaker-disjoint splits: "
-    "intelligibility 80.9% → 86.2% (−27.7% relative CER), and −41% on severe "
-    "dysarthria. Tone error rate did **not** improve (−0.004) — generic ASR "
-    "fine-tuning does not fix tone, which is the gap this project targets. "
-    "All figures are on simulated dysarthria."
-)
+if lang["tonal"]:
+    st.caption(
+        "Measured on a matched test set with speaker-disjoint splits: "
+        "intelligibility 80.9% → 86.2% (−27.7% relative CER), and −41% on severe "
+        "dysarthria. Tone error rate did **not** improve (−0.004) — generic ASR "
+        "fine-tuning does not fix tone, which is the gap this project targets. "
+        "All figures are on simulated dysarthria."
+    )
+else:
+    st.caption(
+        "English fine-tuning result, matched speaker-disjoint WER: clean "
+        "4.92% → 6.06%, mild 6.06% → 5.95%, moderate 5.61% → 5.38%, severe "
+        "6.06% → 6.75% (fine-tuned vs. stock). Overall −6.6% relative, i.e. "
+        "worse. Included here because reporting a negative result honestly "
+        "is part of this project, not because English is solved."
+    )

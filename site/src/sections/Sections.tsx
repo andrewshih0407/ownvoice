@@ -169,8 +169,9 @@ export function Team() {
           Inclusion in the AI Era. Supervised by the Office of the President,
           organised by the Executive Yuan, implemented by the Ministry of
           Digital Affairs.
-          {" "}
-          <span className="muted">[team roster to add]</span>
+        </Reveal>
+        <Reveal as="p" className="lead" delay={140} style={{ maxWidth: "62ch", marginTop: "1.2em" }}>
+          Andrew Shih, Luis Cruz Mondragon, Srihari Kumaresan, and Alexander Du.
         </Reveal>
       </div>
     </section>

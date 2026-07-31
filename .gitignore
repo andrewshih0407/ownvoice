@@ -38,6 +38,12 @@ Thumbs.db
 # evidence trail for docs/results.md.
 !data/**/baseline.json
 !data/**/speaker_calibration.json
+!data/**/matched_eval_en.json
+
+# Keep the demo sample clips — the site and Streamlit app both fetch these at
+# runtime, so without this exception the global *.wav rule above silently
+# drops them from every commit and the deployed "use sample" button 404s.
+!site/public/samples/*.wav
 # Site build output
 site/dist/
 site/node_modules/

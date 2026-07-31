@@ -50,3 +50,6 @@ backend/_testcase.json
 streamlit_local.log
 data_en_build.log
 runs/train_en.log
+
+# Personal data - NEVER commit (public repo)
+docs/SUBMISSION-PRIVATE.md

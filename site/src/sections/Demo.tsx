@@ -14,6 +14,17 @@ import { Reveal } from "../components/Reveal";
 const SEVERITIES = ["mild", "moderate", "severe"] as const;
 type Severity = (typeof SEVERITIES)[number];
 
+// Live model, embedded. The site is deployed to free STATIC hosting, which
+// cannot run Python, so the API below is only reachable when someone runs the
+// backend locally. For public visitors the working model lives in a Streamlit
+// app, embedded here with ?embed=true so Streamlit's own chrome is hidden and
+// it reads as part of this page.
+//
+// Loaded on click rather than on mount: the app pulls ~1 GB of weights on its
+// first request, and spinning that up for every visitor who merely scrolls past
+// would be wasteful and slow.
+const LIVE_DEMO = "https://appapppy-m7fpkveuhxbkxapu2bbkdg.streamlit.app";
+
 // Shipped so the demo works for a visitor with no Mandarin audio to hand — which
 // is most of them. CC0, from Common Voice zh-TW.
 //
@@ -47,6 +58,7 @@ export function Demo() {
   // defaults to it: transcribing the clean original would demonstrate nothing,
   // since the whole claim is about degraded speech.
   const [useSimulated, setUseSimulated] = useState(true);
+  const [liveOpen, setLiveOpen] = useState(false);
   const fileRef = useRef<File | null>(null);
   const simFileRef = useRef<File | null>(null);
 
@@ -145,19 +157,61 @@ export function Demo() {
           then the fine-tuned recogniser transcribes it beside stock Whisper.
         </Reveal>
 
-        <Reveal className={`health health--${health}`}>
-          <span className="health__dot" />
-          {health === "loading" && "Checking model server…"}
-          {health === "ok" && "Model server online — ASR ready"}
-          {health === "down" && (
-            <>
-              Model server not reachable at <code>{API_BASE || "same origin"}</code>. It may be
-              waking up (free tier sleeps after inactivity) — reload in ~30s.
-            </>
-          )}
-        </Reveal>
+        {/* Public visitors get the embedded live model. The local-API controls
+            below only appear when a backend is actually reachable. */}
+        {health !== "ok" && (
+          <Reveal className="live">
+            {!liveOpen ? (
+              <div className="live__cta">
+                <div>
+                  <h3 className="live__title">Run the model</h3>
+                  <p className="live__note">
+                    Loads the real fine-tuned model. First run takes a minute
+                    while ~1&nbsp;GB of weights downloads, then each
+                    transcription takes 20–60&nbsp;s on free CPU.
+                  </p>
+                </div>
+                <button className="btn" onClick={() => setLiveOpen(true)}>
+                  Launch live demo
+                </button>
+              </div>
+            ) : (
+              <>
+                <iframe
+                  className="live__frame"
+                  src={`${LIVE_DEMO}/?embed=true`}
+                  title="OwnVoice live demo"
+                  loading="lazy"
+                  allow="microphone"
+                />
+                <p className="live__hint">
+                  Slow to start? It runs on a free CPU tier.{" "}
+                  <a href={LIVE_DEMO} target="_blank" rel="noreferrer">
+                    Open in a new tab ↗
+                  </a>
+                </p>
+              </>
+            )}
+          </Reveal>
+        )}
 
-        <div className="grid grid--2" style={{ marginTop: "28px", alignItems: "start" }}>
+        {health === "ok" && (
+          <Reveal className="health health--ok">
+            <span className="health__dot" />
+            Local model server online — ASR ready
+          </Reveal>
+        )}
+
+        <div
+          className="grid grid--2"
+          style={{
+            marginTop: "28px",
+            alignItems: "start",
+            // The upload/transcribe controls talk to a local backend. Hiding
+            // them publicly avoids offering buttons that cannot work.
+            display: health === "ok" ? undefined : "none",
+          }}
+        >
           <Reveal className="tile tile--cobalt demo-card">
             <h3>1 · Hear it</h3>
             <label className="demo-file">
@@ -301,6 +355,24 @@ export function Demo() {
       </div>
 
       <style>{`
+        .live { margin-top:18px; }
+        .live__cta {
+          display:flex; align-items:center; justify-content:space-between; gap:24px;
+          flex-wrap:wrap; padding:clamp(20px,3vw,32px);
+          border-radius:var(--radius-lg); background:var(--ink); color:var(--cream);
+        }
+        .live__title { font-size:clamp(1.4rem,2.6vw,2rem); margin-bottom:0.25em; }
+        .live__note { color:rgba(244,239,230,0.78); max-width:46ch; font-size:0.95rem; }
+        .live__cta .btn { background:var(--cream); color:var(--ink); flex-shrink:0; }
+        .live__cta .btn:hover { background:var(--sky); }
+        .live__frame {
+          width:100%; height:min(1180px,150vh); border:none;
+          border-radius:var(--radius-lg); background:#0b0a10;
+          box-shadow:0 24px 60px rgba(0,0,0,0.28);
+        }
+        .live__hint { margin-top:10px; font-size:0.85rem; color:var(--ink-soft); }
+        .live__hint a { color:var(--cobalt); }
+
         .health {
           display:flex;align-items:flex-start;gap:10px;margin-top:6px;
           padding:12px 18px;border-radius:14px;font-size:0.9rem;line-height:1.5;

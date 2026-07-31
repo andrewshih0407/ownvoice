@@ -285,9 +285,13 @@ with st.sidebar:
     severity = st.select_slider(
         "Severity", options=["mild", "moderate", "severe"], value="severe"
     )
+    # Defaults OFF. Two whisper-small models in fp32 is ~2 GB against this
+    # tier's ~2.7 GB, so making the comparison automatic pushes a first-time
+    # visitor straight into an OOM kill — which reads to them as "the site is
+    # broken", not "a checkbox was expensive".
     compare = st.checkbox(
-        "Also run stock Whisper (slower, more memory)",
-        value=True,
+        "Also run stock Whisper (slower, may exceed free-tier memory)",
+        value=False,
         disabled=not lang["tonal"],
         help=None if lang["tonal"] else "English only has stock Whisper — nothing to compare against.",
     )

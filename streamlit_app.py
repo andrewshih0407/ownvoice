@@ -41,20 +41,37 @@ TUNED_MODEL_ZH = "anonymous6623/ownvoice-asr"
 # worse on severe dysarthria (-11.3% relative). So English here runs stock
 # Whisper only, and says so, rather than presenting an ineffective checkpoint
 # as if it were the Mandarin result's counterpart.
+SAMPLES_DIR = ROOT / "site" / "public" / "samples"
+
 LANGS = {
     "Mandarin": {
         "code": "zh",
-        "sample": ROOT / "site" / "public" / "samples" / "sample-clean.wav",
+        "sample": SAMPLES_DIR / "sample-clean.wav",
         "sample_text": "與地主做良性的溝通",
         "tonal": True,
+        "slug": "zh",
     },
     "English": {
         "code": "en",
-        "sample": ROOT / "site" / "public" / "samples" / "sample-clean-en.wav",
+        "sample": SAMPLES_DIR / "sample-clean-en.wav",
         "sample_text": "ALL RIGHT SIT DOWN MY FRIENDS",
         "tonal": False,
+        "slug": "en",
     },
 }
+
+
+def prerendered(slug: str, severity: str) -> Path:
+    """Degraded audio for the built-in sample clips, rendered ahead of time.
+
+    pyworld builds from C at install time and that build FAILS on Streamlit
+    Community Cloud, so the live simulator cannot run there — the demo's core
+    "hear the problem" step was dead in production while working locally.
+    These files come from the same analyze()/perturb() code path with the same
+    seed, so they are what the live simulator would have produced, not a
+    substitute effect. Uploaded audio still needs real pyworld and says so.
+    """
+    return SAMPLES_DIR / f"sample-{slug}-{severity}.wav"
 
 st.set_page_config(page_title="OwnVoice — live demo", page_icon="🗣", layout="wide")
 
@@ -319,10 +336,14 @@ with col_in:
     if use_sample and lang["sample"].exists():
         st.session_state["audio"] = lang["sample"].read_bytes()
         st.session_state["audio_lang"] = lang_name
+        st.session_state["is_sample"] = True
         st.session_state[ref_key] = lang["sample_text"]
+        st.session_state.pop("sim", None)
+        st.session_state.pop("result", None)
     if upload is not None:
         st.session_state["audio"] = upload.read()
         st.session_state["audio_lang"] = lang_name
+        st.session_state["is_sample"] = False
 
     audio = st.session_state.get("audio")
     if audio and st.session_state.get("audio_lang") == lang_name:
@@ -345,8 +366,21 @@ with col_in:
         try:
             from dysarthria_sim import analyze, perturb, pyworld_available
 
-            if not pyworld_available():
-                st.error("pyworld unavailable — F0 perturbation cannot run.")
+            ready = prerendered(lang["slug"], severity)
+            # Prefer the shipped render for the built-in clip. It is the same
+            # code path and seed, and it keeps this step alive where pyworld
+            # could not be built.
+            if st.session_state.get("is_sample") and ready.exists():
+                st.session_state["sim"] = ready.read_bytes()
+                st.session_state["sim_sev"] = severity
+                st.session_state.pop("result", None)
+            elif not pyworld_available():
+                st.error(
+                    "The simulator needs pyworld, which could not be built on "
+                    "this host, so uploaded audio cannot be degraded here. "
+                    "Use the sample clip above — its degraded versions ship "
+                    "with the app — or run the app locally, where this works."
+                )
             else:
                 with st.spinner(f"Degrading to {severity}…"):
                     y = read_audio(audio)

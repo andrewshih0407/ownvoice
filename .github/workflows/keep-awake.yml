@@ -20,7 +20,11 @@ name: keep demo awake
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Every 5 minutes, which is the shortest interval GitHub accepts. Note that
+    # GitHub's scheduler is best-effort and drops or delays runs under load, so
+    # the real spacing drifts well above 5 minutes regardless of what is asked
+    # for here. Free on a public repo either way.
+    - cron: "*/5 * * * *"
   workflow_dispatch: # so it can be triggered by hand before a known demo slot
 
 permissions:

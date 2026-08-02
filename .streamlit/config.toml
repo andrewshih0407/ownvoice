@@ -1,3 +1,19 @@
+[server]
+# Turn the source watcher OFF. It exists to hot-reload edited files during
+# local development; on Community Cloud nothing edits files in place, so it
+# does no useful work here.
+#
+# It is not merely idle, though. To decide what to watch, the watcher walks
+# every imported module and calls importlib.import_module on submodules —
+# including the whole transformers model zoo. With transformers 5.x that is
+# roughly a thousand modules, each of which fails on `import torchvision`
+# (not installed, and not needed for speech), and each failure is caught and
+# logged with a full traceback. The app's logs are almost entirely that spam.
+#
+# Cost: startup time, and memory spent importing modules this app never uses,
+# on a host where memory is the binding constraint (see streamlit_app.py).
+fileWatcherType = "none"
+
 # Base Streamlit theme, matched to the acrylic-on-cream palette used across
 # site/src/styles/global.css. Streamlit's theme engine only covers a handful
 # of colors and a generic font keyword — the finer match (Archivo/Figtree,

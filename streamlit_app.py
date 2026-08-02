@@ -243,16 +243,18 @@ st.markdown(
 # --------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False, max_entries=1)
 def load_asr(model_id: str):
-    import torch
     from transformers import pipeline
 
     _limit_threads()
     gc.collect()  # reclaim the evicted pipeline before allocating the next
+    # No dtype argument on purpose. float32 is already the CPU default, and the
+    # keyword was renamed (torch_dtype -> dtype) between transformers 4.x and
+    # 5.x — passing either one pins this file to a version range the host may
+    # not match, for no behavioural gain. Omitting it works on both.
     return pipeline(
         "automatic-speech-recognition",
         model=model_id,
         device=-1,  # Community Cloud is CPU-only
-        dtype=torch.float32,
         chunk_length_s=30,
     )
 

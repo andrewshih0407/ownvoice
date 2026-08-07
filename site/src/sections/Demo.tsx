@@ -68,6 +68,23 @@ export function Demo() {
       .catch(() => setHealth("down"));
   }, []);
 
+  // Wake the live demo the moment anyone opens this page, rather than when
+  // they click into it.
+  //
+  // The demo runs on a free tier that sleeps after inactivity, and a cold
+  // start has to boot a container and import torch before it renders. A
+  // visitor who lands here, reads down the page, and then clicks Launch has
+  // already given the app the head start it needs — but only if something
+  // asked it to wake on arrival. This is that request.
+  //
+  // no-cors because we cannot read a cross-origin response and do not need
+  // to: the point is that the request arrives, not what it says. Failures are
+  // ignored for the same reason. Nothing on this page depends on the result.
+  useEffect(() => {
+    fetch(`${LIVE_DEMO}/_stcore/health`, { mode: "no-cors", cache: "no-store" })
+      .catch(() => {});
+  }, []);
+
   // Revoke the object URL when it is replaced or the component unmounts.
   useEffect(() => {
     return () => {
@@ -173,9 +190,11 @@ export function Demo() {
                 <div>
                   <h3 className="live__title">Run the model</h3>
                   <p className="live__note">
-                    Loads the real fine-tuned model. First run takes a minute
-                    while ~1&nbsp;GB of weights downloads, then each
-                    transcription takes 20–60&nbsp;s on free CPU.
+                    Loads the real fine-tuned model. It runs on a free tier
+                    that sleeps when idle, so if it has been quiet it may spend
+                    a minute waking up — we start waking it as soon as you open
+                    this page. First transcription also downloads ~1&nbsp;GB of
+                    weights; after that each one takes 20–60&nbsp;s on free CPU.
                   </p>
                 </div>
                 <button className="btn" onClick={() => setLiveOpen(true)}>

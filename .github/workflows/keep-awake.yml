@@ -41,14 +41,16 @@ jobs:
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
           JAR="$(mktemp)"
 
-          # Establish a session, then hit the app-level health endpoint. The
-          # app container serves /~/+/_stcore/health only once the Python
-          # process is actually up, so this distinguishes "awake" from "the
-          # proxy answered".
+          # Establish a session first: a cookieless request only gets the
+          # redirect chain of Streamlit's session handshake, never the app.
           curl -sS -L -m 60 -A "$UA" -c "$JAR" -b "$JAR" -o /dev/null "$URL/" || true
 
+          # /_stcore/health is the health endpoint. Do NOT use /~/+/_stcore/health
+          # - that is the path the embedded iframe uses internally, and it
+          # answers 400 even when the app is perfectly healthy, which made every
+          # run of this workflow log a false warning.
           code="$(curl -sS -L -m 60 -A "$UA" -c "$JAR" -b "$JAR" \
-                   -o /dev/null -w '%{http_code}' "$URL/~/+/_stcore/health" || echo 000)"
+                   -o /dev/null -w '%{http_code}' "$URL/_stcore/health" || echo 000)"
           echo "app health: $code"
 
           if [ "$code" = "200" ]; then
@@ -61,7 +63,7 @@ jobs:
           echo "Not healthy yet; waiting for wake-up and retrying once."
           sleep 90
           code="$(curl -sS -L -m 60 -A "$UA" -c "$JAR" -b "$JAR" \
-                   -o /dev/null -w '%{http_code}' "$URL/~/+/_stcore/health" || echo 000)"
+                   -o /dev/null -w '%{http_code}' "$URL/_stcore/health" || echo 000)"
           echo "app health after retry: $code"
 
           # Do not fail the workflow on a bad ping. A red X every 10 minutes

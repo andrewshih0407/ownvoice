@@ -3,8 +3,7 @@
 The OwnVoice app puts live captions in your pocket. The Chrome extension covers calls on a
 computer; the app covers everywhere else: at work, at a service counter, at the doctor.
 
-Status (2026-10-21): **designed, not yet built.** The screens below are the agreed design. Work on
-the iOS and Android build starts right after the 2026 Presidential Hackathon finals. Until it
+Status (2026-10-21): **designed, not yet built.** The screens below are the agreed design. Work on the iOS and Android build is under way. Until it
 ships, the website and the Chrome extension are the working ways to use OwnVoice.
 
 ![The four app screens](screens/all-screens.png)
@@ -21,23 +20,15 @@ ships, the website and the Chrome extension are the working ways to use OwnVoice
 The captions in the screens are OwnVoice's real output on recordings of a real speaker with
 dysarthria (MDSC / AISHELL-6B, speaker DM0005), not invented text.
 
-## Where the design lives
+## Design
 
-The screens are React components in `video/remotion/src/app.tsx` (`WelcomeScreen`, `TalkScreen`,
-`ShowScreen`, `PrivacyScreen`, `Phone`). They use the product site's palette and type
-(`video/remotion/src/theme.ts`). The same components animate the app scene in the demo video and
-render these stills:
-
-```bash
-cd video/remotion
-B=$(ls -d ~/Library/Caches/ms-playwright/chromium_headless_shell-1208/*/chrome-headless-shell)
-npx remotion still src/index.ts AppStills ../../app/screens/all-screens.png --browser-executable=$B
-npx remotion still src/index.ts AppScreen ../../app/screens/2-talk.png --props='{"which":1}' --image-format=png --browser-executable=$B
-```
+The screens use the product site's palette and type (cream `#f4efe6`, ink `#14110f`, cobalt
+`#3e6be0`, marigold `#f4b024`; Archivo for display, Figtree for text, PingFang TC / Noto Sans TC
+for Chinese). Each screen is a 410 × 880 pt phone layout.
 
 ## Build plan
 
-1. A React Native (Expo) client that reuses these components' layout and the extension's
+1. A React Native (Expo) client that follows these screens and reuses the extension's
    segmenting logic (`extension/sidepanel.js`: cut at pauses, 0.6–7 s segments).
 2. Recognition through the same `/transcribe_chunk` API the extension uses, against a hosted
    model server first.

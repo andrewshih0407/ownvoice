@@ -87,7 +87,7 @@ The same pattern NeuroTrace already uses.
    `"tuned_is_distinct_from_base": true` before sharing the link.
 
 Spaces sleep after inactivity. The first visitor after a sleep waits for a cold
-start plus model load — worth knowing before you send the URL to a judge.
+start plus model load — worth knowing before you share the URL.
 
 ---
 

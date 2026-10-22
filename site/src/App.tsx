@@ -1,6 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
-import { Home } from "./pages/Home";
 import { Research } from "./pages/Research";
 import { Screening } from "./pages/Screening";
 import { Method } from "./pages/Method";
@@ -10,12 +9,12 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Navigate to="/research" replace />} />
         <Route path="/research" element={<Research />} />
         <Route path="/how" element={<Screening />} />
         <Route path="/method" element={<Method />} />
         <Route path="/code" element={<CodePage />} />
-        <Route path="*" element={<Home />} />
+        <Route path="*" element={<Navigate to="/research" replace />} />
       </Route>
     </Routes>
   );

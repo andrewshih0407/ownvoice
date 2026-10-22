@@ -2,10 +2,8 @@
 
 **Tone-aware speech recognition for Mandarin speakers with dysarthria.**
 
-🌐 **Live site:** https://anonymous6623-ownvoice.static.hf.space
+🌐 **Website:** https://ownvoice.vercel.app · **Live demo:** https://ownvoice.vercel.app/research/
 **Model:** https://huggingface.co/anonymous6623/ownvoice-asr
-📄 Entry for the 2026 Presidential Hackathon International Track — *Digital
-Inclusion in the AI Era*.
 
 ---
 
@@ -178,7 +176,7 @@ src/          simulation, metrics, training, evaluation
 
 backend/      FastAPI: /health, /simulate, /transcribe
 site/         React + Vite + TypeScript, three.js, GSAP, Lenis
-docs/         results, prior art, dataset access, competition handbook
+docs/         results, prior art, dataset access
 Dockerfile    single-origin container (site + API)
 ```
 
@@ -192,7 +190,6 @@ Dockerfile    single-origin container (site + API)
 - [`docs/datasets.md`](docs/datasets.md) — which corpora are usable and which
   are restricted
 - [`DEPLOY.md`](DEPLOY.md) — deployment
-- [`RESUME.md`](RESUME.md) — current state and next steps
 
 ## Contributing
 

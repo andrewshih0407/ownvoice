@@ -189,54 +189,6 @@ export function Demo() {
           <SampleEvidence />
         </Reveal>
 
-        {/* Public visitors get the embedded live model. The local-API controls
-            below only appear when a backend is actually reachable. */}
-        {health !== "ok" && (
-          <Reveal className="live">
-            {!liveOpen ? (
-              <div className="live__cta">
-                <div>
-                  <h3 className="live__title">Run the model yourself</h3>
-                  <p className="live__note">
-                    Upload your own Mandarin clip and run the fine-tuned model
-                    on it. It runs on a free tier that sleeps when idle, so if
-                    it has been quiet it may spend a minute waking up — we
-                    start waking it as soon as you open this page. First
-                    transcription also downloads ~1&nbsp;GB of weights; after
-                    that each one takes 20–60&nbsp;s on free CPU.
-                  </p>
-                  <p className="live__note">
-                    <strong>Live microphone transcription</strong> and the
-                    full-screen stage view are built and run against a local
-                    model server. They are not in this hosted demo because the
-                    free static host cannot run Python; see the repository to
-                    run them yourself.
-                  </p>
-                </div>
-                <button className="btn" onClick={() => setLiveOpen(true)}>
-                  Launch live demo
-                </button>
-              </div>
-            ) : (
-              <>
-                <iframe
-                  className="live__frame"
-                  src={`${LIVE_DEMO}/?embed=true`}
-                  title="OwnVoice live demo"
-                  loading="lazy"
-                  allow="microphone"
-                />
-                <p className="live__hint">
-                  Slow to start? It runs on a free CPU tier.{" "}
-                  <a href={LIVE_DEMO} target="_blank" rel="noreferrer">
-                    Open in a new tab ↗
-                  </a>
-                </p>
-              </>
-            )}
-          </Reveal>
-        )}
-
         {health === "ok" && (
           <Reveal className="health health--ok">
             <span className="health__dot" />
@@ -244,21 +196,30 @@ export function Demo() {
           </Reveal>
         )}
 
-        {health === "ok" && (
-          <Reveal style={{ marginTop: "28px" }}>
-            <LiveTranscribe />
+        {health === "down" && (
+          <Reveal className="health health--down">
+            <span className="health__dot" />
+            <span>
+              Live transcription and dysarthria simulation run against the
+              OwnVoice model server, which is not connected on this page. They
+              work when the server runs on your own computer (see Code). To try
+              the model right now, use the hosted demo below.
+            </span>
           </Reveal>
         )}
 
+        {/* Shown to everyone so the page matches what the product does; inert
+            until a model server answers the health check. */}
+        <Reveal style={{ marginTop: "28px" }}>
+          <div className={health === "ok" ? undefined : "offline"} aria-disabled={health !== "ok"}>
+            <LiveTranscribe />
+          </div>
+        </Reveal>
+
         <div
-          className="grid grid--2"
-          style={{
-            marginTop: "28px",
-            alignItems: "start",
-            // The upload/transcribe controls talk to a local backend. Hiding
-            // them publicly avoids offering buttons that cannot work.
-            display: health === "ok" ? undefined : "none",
-          }}
+          className={`grid grid--2${health === "ok" ? "" : " offline"}`}
+          aria-disabled={health !== "ok"}
+          style={{ marginTop: "28px", alignItems: "start" }}
         >
           <Reveal className="tile tile--cobalt demo-card">
             <h3>1 · Hear it</h3>
@@ -392,6 +353,54 @@ export function Demo() {
           </Reveal>
         </div>
 
+        {/* Public visitors get the embedded live model. The local-API controls
+            below only appear when a backend is actually reachable. */}
+        {health !== "ok" && (
+          <Reveal className="live">
+            {!liveOpen ? (
+              <div className="live__cta">
+                <div>
+                  <h3 className="live__title">Run the model yourself</h3>
+                  <p className="live__note">
+                    Upload your own Mandarin clip and run the fine-tuned model
+                    on it. It runs on a free tier that sleeps when idle, so if
+                    it has been quiet it may spend a minute waking up — we
+                    start waking it as soon as you open this page. First
+                    transcription also downloads ~1&nbsp;GB of weights; after
+                    that each one takes 20–60&nbsp;s on free CPU.
+                  </p>
+                  <p className="live__note">
+                    <strong>Live microphone transcription</strong> and the
+                    full-screen stage view are built and run against a local
+                    model server. They are not in this hosted demo because the
+                    free static host cannot run Python; see the repository to
+                    run them yourself.
+                  </p>
+                </div>
+                <button className="btn" onClick={() => setLiveOpen(true)}>
+                  Launch live demo
+                </button>
+              </div>
+            ) : (
+              <>
+                <iframe
+                  className="live__frame"
+                  src={`${LIVE_DEMO}/?embed=true`}
+                  title="OwnVoice live demo"
+                  loading="lazy"
+                  allow="microphone"
+                />
+                <p className="live__hint">
+                  Slow to start? It runs on a free CPU tier.{" "}
+                  <a href={LIVE_DEMO} target="_blank" rel="noreferrer">
+                    Open in a new tab ↗
+                  </a>
+                </p>
+              </>
+            )}
+          </Reveal>
+        )}
+
         {err && <p className="demo-err">{err}</p>}
 
         <p className="disclaimer" style={{ marginTop: "28px" }}>
@@ -403,7 +412,8 @@ export function Demo() {
       </div>
 
       <style>{`
-        .live { margin-top:18px; }
+        .live { margin-top:28px; }
+        .offline { opacity:0.5; pointer-events:none; filter:saturate(0.75); user-select:none; }
         .live__cta {
           display:flex; align-items:center; justify-content:space-between; gap:24px;
           flex-wrap:wrap; padding:clamp(20px,3vw,32px);

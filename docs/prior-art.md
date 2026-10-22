@@ -1,7 +1,7 @@
 # Prior art — what is already done, and what is left
 
-Written after a literature check that materially changed the plan. Better to have
-this on record than to have a judge discover it.
+Written after a literature check that materially changed the plan. It is kept on
+record so the closest prior work is stated plainly, not left for readers to find.
 
 ---
 
@@ -112,4 +112,4 @@ already exist.
    collaboration units" and "future planned collaboration units."
 4. **Cite all of this in the submission.** "Differences from existing solutions"
    is a scored field; showing command of the prior art and a precise, defensible
-   delta is far stronger than an overreaching novelty claim a judge can puncture.
+   delta is far stronger than an overreaching novelty claim a reviewer can puncture.

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { scrollToId } from "../lib/scroll";
 
 const LINKS = [
-  { to: "/research", label: "The project" },
+  { to: "/research", label: "Research" },
   { to: "/how", label: "How it works" },
   { to: "/method", label: "Method" },
   { to: "/code", label: "Code" },
@@ -24,19 +24,20 @@ export function FloatingNav() {
   }, []);
 
   const goDemo = () => {
-    if (pathname === "/") {
+    if (pathname === "/research") {
       scrollToId("demo");
     } else {
-      navigate("/");
+      navigate("/research");
       window.setTimeout(() => scrollToId("demo"), 450);
     }
   };
 
   return (
     <nav className={`fnav ${scrolled ? "is-solid" : ""}`} aria-label="Primary">
-      <Link className="fnav__brand" to="/" aria-label="OwnVoice home">
+      {/* The product site is the home page; this app lives under /research/. */}
+      <a className="fnav__brand" href="/" aria-label="OwnVoice home">
         Own<span>Voice</span>
-      </Link>
+      </a>
       <div className="fnav__links">
         {LINKS.map((l) => (
           <NavLink
@@ -49,7 +50,7 @@ export function FloatingNav() {
         ))}
       </div>
       <button className="fnav__cta" onClick={goDemo}>
-        Hear the problem
+        Try the live demo
       </button>
       <style>{`
         .fnav { position:fixed; top:0; left:0; right:0; z-index:var(--z-nav);

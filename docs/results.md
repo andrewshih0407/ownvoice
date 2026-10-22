@@ -447,4 +447,4 @@ unusable for validation.
 
 Real-data path: MDSC (AISHELL-6B) is least encumbered; CDSD, TORGO and UASpeech
 need signed licenses. See `datasets.md`. **File those applications** — approval
-lag is weeks and the competition build phase starts mid-September.
+lag is weeks.

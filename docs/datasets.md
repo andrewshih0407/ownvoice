@@ -72,7 +72,7 @@ have to be done by you rather than by an assistant.
   3. Submit via the external application link on the database page
 - **Held by:** MELab, Institute of Psychology, Chinese Academy of Sciences
 - **Paper:** [arXiv 2310.15930](https://arxiv.org/abs/2310.15930) (Interspeech 2024)
-- **Note:** a PRC-institution dataset in a Taiwanese government competition —
+- **Note:** a PRC-institution dataset in a Taiwan-focused project —
   worth a moment's thought on optics and on any data-transfer restrictions.
   MDSC/AISHELL is also PRC-based. Flagging, not judging.
 
@@ -136,7 +136,7 @@ Needs defining before it means anything. Candidate metrics:
 
 - **Word-level intelligibility** rated by naive human listeners, before vs.
   after conversion — this is the metric that matters clinically and the one
-  judges will understand.
+  non-specialists will understand.
 - **ASR word error rate** on converted vs. original speech — cheap, automatic,
   a reasonable proxy, but not the real outcome.
 - **Speaker similarity** to the banked voice (cosine distance on speaker

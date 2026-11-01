@@ -42,10 +42,19 @@ Full numbers, including the negative results, are in [`docs/results.md`](docs/re
 
 ## Data
 
-- **Training:** Mozilla Common Voice zh-TW (CC0), `train` split. 1,000 sentences from
-  91 speakers, each damaged at three severities by our simulator (3,000 dysarthric pairs),
-  plus the 1,000 clean originals so the model does not forget normal speech. Splits are
-  **speaker-disjoint**: one fifth of speakers are held out for evaluation.
+- **Training:** Mozilla Common Voice zh-TW (CC0), `train` split. 1,000 real sentences
+  from 91 speakers, each damaged at three severities (mild, moderate, severe) by our
+  simulator: **3,000 simulated recordings**. The 1,000 clean originals are added so the
+  model does not forget normal speech, for 4,000 recordings in all. Splits are
+  **speaker-disjoint**: one fifth of speakers (and all their recordings) are held out
+  for evaluation, leaving about 3,200 recordings for training.
+- **Simulator:** the WORLD vocoder (pyworld) splits speech into pitch, spectral envelope
+  and breathiness, and damages each. At severe, speech runs at 60% speed and keeps 20%
+  of its pitch range. Validated on 40 sentences from 31 speakers: tone-scale pitch
+  variation falls 2.545 → 1.845 → 1.271 → 1.173 semitones from clean to severe, and
+  duration rises 1.00 → 1.67×. Jitter is not yet validated.
+- **Model:** `openai/whisper-small` fine-tuned for one epoch (about 21 minutes on an
+  RTX 5060 laptop GPU). More epochs overfit.
 - **Real-patient test:** MDSC / AISHELL-6B, Mandarin dysarthric speech (CC BY-NC 4.0).
   Used **only as a held-out test set**, never for training. Its audio is not in this repo
   and must not be redistributed. Speakers are referred to by ID only.
@@ -55,17 +64,21 @@ enough to train on. MDSC is small, non-commercial and gated.
 
 ## Result 1: real patients (MDSC / AISHELL-6B)
 
-420 recordings from 21 speakers with dysarthria (cerebral palsy, Wilson's disease),
-20 random recordings per speaker, plus 5 healthy controls. The analysis was
+420 recordings from 21 speakers with dysarthria (cerebral palsy, Wilson's disease;
+expert-rated intelligibility 22–94%), 20 random recordings per speaker, plus
+100 recordings from 5 healthy controls. The analysis was
 pre-registered in [`src/eval_mdsc.py`](src/eval_mdsc.py) before any result existed.
 
-| group | speakers | CER stock | CER OwnVoice | relative cut |
-|---|---|---|---|---|
-| mild | 11 | 0.444 | 0.318 | 28% |
-| moderate | 4 | 1.015 | 0.700 | 31% |
-| severe | 6 | 1.169 | 0.938 | 20% |
-| **all dysarthric** | **21** | **0.760** | **0.568** | **25%** |
-| healthy controls | 5 | 0.245 | 0.097 | 61% |
+| group | speakers | recordings | CER stock | CER OwnVoice | relative cut | better / worse / tie | Wilcoxon p |
+|---|---|---|---|---|---|---|---|
+| mild | 11 | 220 | 0.444 | 0.318 | 28% | 92 / 50 / 78 | 3.5e-05 |
+| moderate | 4 | 80 | 1.015 | 0.700 | 31% | 46 / 12 / 22 | 2.2e-06 |
+| severe | 6 | 120 | 1.169 | 0.938 | 20% | 56 / 13 / 51 | 2.2e-07 |
+| **all dysarthric** | **21** | **420** | **0.760** | **0.568** | **25%** | **194 / 75 / 151** | **1.0e-15** |
+| healthy controls | 5 | 100 | 0.245 | 0.097 | 61% | 31 / 16 / 53 | 2.8e-04 |
+
+CER above 1 means stock Whisper output more wrong characters than the sentence had
+(it often hallucinates English or extra words).
 
 **25% fewer character errors on real dysarthric speech** (paired Wilcoxon p ≈ 1e-15).
 OwnVoice was better for 20 of 21 speakers and slightly worse for one (DM0017, mild).
@@ -76,13 +89,16 @@ Caveats that go with this number every time:
   (plausibly adaptation to Taiwanese-Mandarin text and fewer stock hallucinations).
 - **Absolute error is still high:** 57% overall, 94% for severe speakers. Severe speech
   is not yet usable as captions.
+- Tone error (STER) also fell, 0.121 → 0.089 overall, but this is exploratory and was
+  not tested for significance. Severe: 0.166 → 0.141.
 - The material is short smart-home commands, and the causes (CP, Wilson's) differ from
   the stroke, Parkinson's and oral-cancer population we target.
 
 ## Result 2: simulated dysarthria (held-out speakers)
 
 Stock whisper-small falls from 89.3% to 52.6% intelligibility between clean and severe
-simulated speech. Both models scored on the same held-out speakers:
+simulated speech. Both models scored on the same held-out speakers (about 800
+recordings; the exact count is written to `matched_eval.json` by `evaluate.py`):
 
 | condition | CER stock | CER OwnVoice | relative cut |
 |---|---|---|---|
@@ -105,6 +121,13 @@ for Authentic"), simulated results are valid for architecture work, not as clini
 claims. Nothing here is a clinical claim.
 
 ---
+
+## Speed
+
+Measured on an M4 Mac CPU with a freshly started server: about 2.4–3.2 s of processing
+per 4–6 s sentence, so a caption appears about 3 s after the speaker finishes. The first
+request after start-up takes about 45 s while the model loads. Phone speed has not been
+measured.
 
 ## Quickstart
 

@@ -73,9 +73,13 @@ class Collator:
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
         )
-        # Whisper prepends BOS during generation; strip it from the targets so
-        # it isn't learned twice.
-        if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().item():
+        # The model prepends <|startoftranscript|> (decoder_start_token_id) when it
+        # shifts labels right, so strip it from the targets or every training
+        # sequence starts with it twice. Whisper's bos_token is <|endoftext|>, a
+        # different token, so comparing against bos_token_id never matched: runs
+        # before 2026-11-22 (asr_v1, asr_en) trained on doubled start tokens.
+        start = self.processor.tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
+        if (labels[:, 0] == start).all().item():
             labels = labels[:, 1:]
         batch["labels"] = labels
         return batch

@@ -20,6 +20,12 @@ CASES = [
     ("tone error AFTER deletion", "我要買東西", "要賣東西", 0.25),
     ("two insertions then tone error", "我要買東西", "我啊就要賣東西", 0.2),
     ("all tones wrong", "買賣", "賣買", 1.0),
+    # SAME-CHARACTER FALSE ERROR: pypinyin reads 一 as yi4 in 一起 but yi1 in
+    # 一些. 一 is transcribed correctly, so it is not a tone error (was 0.500).
+    ("same char, context-dependent tone", "一起去", "一些去", 0.0),
+    # A DIFFERENT character with the same segment and another tone still counts:
+    # 衣 yi1 for 一 yi4 is a wrong word.
+    ("different char, same segment", "一起去", "衣起去", 1 / 3),
     ("no overlap at all", "我要買東西", "完全不同", None),
     ("real baseline output", "與地主做良性的溝通", "與地主做人心的構同", None),
 ]

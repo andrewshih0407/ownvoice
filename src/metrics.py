@@ -26,8 +26,8 @@ deletion shifted the hypothesis, so every syllable after it compared against the
 wrong reference position, failed the segment-equality guard, and dropped
 silently out of the denominator:
 
-    我要買東西 -> 我要賣東西     STER 0.222   correct
-    我要買東西 -> 我就要買東西   STER 0.000   WRONG, the tone error vanished
+    我要買東西 -> 我要賣東西     STER 0.200   correct
+    我要買東西 -> 我就要賣東西   STER 0.000   WRONG, the tone error vanished
 
 That made STER under-report tone errors, and under-report *more* on worse
 transcripts (which contain more length mismatches) — biasing any
@@ -37,11 +37,27 @@ It now aligns with edit distance on the SEGMENTS before comparing tones, so
 tone differences cannot perturb the alignment and every segmentally-correct
 syllable is counted wherever it lands. See ``_align_indices`` and ``_ster``.
 
+STER SAME-CHARACTER FALSE ERRORS — fixed 2026-11-26
+---------------------------------------------------
+Tones come from pypinyin's dictionary, not from audio, and pypinyin gives some
+characters a tone that depends on their neighbours. The big one is 一 (yi1 /
+yi2 / yi4 by the next syllable). When a transcript has 一 right but its
+neighbour wrong, the same correct character got a different dictionary tone
+and STER counted a tone error that never happened:
+
+    一起去 -> 一些去    一 is yi4 in the reference, yi1 in the hypothesis
+
+On the 2026-10-20 MDSC run this was 21% of OwnVoice's STER tone errors and 10%
+of stock Whisper's, so it penalised the better transcript more. A tone error
+now requires the aligned characters to differ: the same character cannot be a
+wrong word. TER and the syllable error rate are unchanged.
+
 CER was never affected: jiwer aligns properly.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, asdict
 
 import jiwer
@@ -60,6 +76,16 @@ def _syllables(text: str) -> list[str]:
             continue
         out.append(syl if syl[-1].isdigit() else syl + _NEUTRAL)
     return out
+
+
+# CJK Unified Ideographs, Extension A, and Compatibility Ideographs: the
+# characters pypinyin turns into one syllable each.
+_HAN = re.compile(r"[㐀-䶿一-鿿豈-﫿]")
+
+
+def _han_chars(text: str) -> list[str]:
+    """The Chinese characters of `text`, in order; one per syllable from _syllables."""
+    return _HAN.findall(text)
 
 
 def _split_tone(syl: str) -> tuple[str, str]:
@@ -140,26 +166,46 @@ def _align_indices(ref: list, hyp: list) -> list[tuple[int | None, int | None, s
     return out
 
 
-def _ster(ref_syl: list[str], hyp_syl: list[str]) -> tuple[int, int]:
+def _ster(
+    ref_syl: list[str],
+    hyp_syl: list[str],
+    ref_chars: list[str] | None = None,
+    hyp_chars: list[str] | None = None,
+) -> tuple[int, int]:
     """Return (wrong_tone, matched) over ALIGNED, segmentally-correct syllables.
 
     Alignment runs on the SEGMENTS (initial+final) rather than whole syllables,
     so a tone difference cannot perturb the alignment itself — mai3 and mai4
     align as the same segment "mai", and only then are their tones compared.
     That is exactly the population STER is defined over.
+
+    With the characters behind each syllable, a tone difference on the SAME
+    character is not an error: it is pypinyin reading one character differently
+    in two contexts (see the module docstring). The characters are used only
+    when they line up one-to-one with the syllables; otherwise every tone
+    difference counts, as before.
     """
     ref_pairs = [_split_tone(s) for s in ref_syl]
     hyp_pairs = [_split_tone(s) for s in hyp_syl]
     ref_segs = [p[0] for p in ref_pairs]
     hyp_segs = [p[0] for p in hyp_pairs]
+    use_chars = (
+        ref_chars is not None
+        and hyp_chars is not None
+        and len(ref_chars) == len(ref_syl)
+        and len(hyp_chars) == len(hyp_syl)
+    )
 
     matched = wrong = 0
     for i, j, op in _align_indices(ref_segs, hyp_segs):
         if op != "match" or i is None or j is None:
             continue
         matched += 1
-        if ref_pairs[i][1] != hyp_pairs[j][1]:
-            wrong += 1
+        if ref_pairs[i][1] == hyp_pairs[j][1]:
+            continue
+        if use_chars and ref_chars[i] == hyp_chars[j]:
+            continue
+        wrong += 1
     return wrong, matched
 
 
@@ -206,7 +252,9 @@ def score(reference: str, hypothesis: str) -> Scores:
     ter = _rate(*_levenshtein_ops(ref_tones, hyp_tones))
 
     # STER over ALIGNED segmentally-correct syllables (see _ster).
-    wrong_tone, matched = _ster(ref_syl, hyp_syl)
+    wrong_tone, matched = _ster(
+        ref_syl, hyp_syl, _han_chars(reference), _han_chars(hypothesis)
+    )
     ster = wrong_tone / matched if matched else 0.0
 
     return Scores(
@@ -249,7 +297,7 @@ def score_corpus(pairs: list[tuple[str, str]]) -> Scores:
         )
         t_sub, t_del, t_ins, t_len = t_sub + a, t_del + b, t_ins + c, t_len + n
 
-        w, m_ = _ster(ref_syl, hyp_syl)
+        w, m_ = _ster(ref_syl, hyp_syl, _han_chars(ref), _han_chars(hyp))
         wrong_tone += w
         matched += m_
 

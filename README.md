@@ -80,8 +80,9 @@ pre-registered in [`src/eval_mdsc.py`](src/eval_mdsc.py) before any result exist
 CER above 1 means stock Whisper output more wrong characters than the sentence had
 (it often hallucinates English or extra words).
 
-**25% fewer character errors on real dysarthric speech** (paired Wilcoxon p ≈ 1e-15).
-OwnVoice was better for 20 of 21 speakers and slightly worse for one (DM0017, mild).
+**25% fewer character errors on real dysarthric speech.** OwnVoice was better for 20 of
+21 speakers and slightly worse for one (DM0017, mild); paired Wilcoxon across the 21
+speakers, p ≈ 2e-6.
 
 Caveats that go with this number every time:
 
@@ -89,8 +90,8 @@ Caveats that go with this number every time:
   (plausibly adaptation to Taiwanese-Mandarin text and fewer stock hallucinations).
 - **Absolute error is still high:** 57% overall, 94% for severe speakers. Severe speech
   is not yet usable as captions.
-- Tone error (STER) also fell, 0.121 → 0.089 overall, but this is exploratory and was
-  not tested for significance. Severe: 0.166 → 0.141.
+- Tone error (STER) also fell, 0.117 → 0.084 overall, but this is exploratory and was
+  not tested for significance. Severe: 0.153 → 0.132.
 - The material is short smart-home commands, and the causes (CP, Wilson's) differ from
   the stroke, Parkinson's and oral-cancer population we target.
 

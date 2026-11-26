@@ -6,19 +6,26 @@
 > Wilson's disease), expert intelligibility 22–94%. No MDSC audio was ever used in training. For
 > each speaker, 20 random non-wake-word recordings (seed 0, no selection), plus 5 random healthy
 > controls × 20. The analysis was pre-registered in `src/eval_mdsc.py` before results existed.
-> Reproduce: `python src/eval_mdsc.py --root <extracted>` then `python src/summarize_mdsc.py runs/mdsc_eval.jsonl`.
+> Reproduce: `python src/eval_mdsc.py --root <extracted>` then
+> `python src/summarize_mdsc.py runs/mdsc_eval.jsonl --rescore`.
 >
-> | group | clips | speakers | stock CER | OwnVoice CER | relative cut | better / worse / tie | Wilcoxon p | stock STER | OwnVoice STER |
-> |---|---|---|---|---|---|---|---|---|---|
-> | dysarthric (all) | 420 | 21 | 0.760 | 0.568 | +25% | 194 / 75 / 151 | 1.02e-15 | 0.121 | 0.089 |
-> | mild | 220 | 11 | 0.444 | 0.318 | +28% | 92 / 50 / 78 | 3.53e-05 | 0.098 | 0.068 |
-> | moderate | 80 | 4 | 1.015 | 0.700 | +31% | 46 / 12 / 22 | 2.22e-06 | 0.117 | 0.070 |
-> | severe | 120 | 6 | 1.169 | 0.938 | +20% | 56 / 13 / 51 | 2.2e-07 | 0.166 | 0.141 |
-> | control | 100 | 5 | 0.245 | 0.097 | +61% | 31 / 16 / 53 | 0.000283 | 0.020 | 0.032 |
+> Updated 2026-11-26: STER rescored after the same-character fix (section below), and a
+> patient-level test added next to the per-clip one. CER is unchanged.
 >
-> **Headline:** 25% fewer character errors on real dysarthric speech (CER 0.760 → 0.568, paired
-> Wilcoxon p ≈ 1e-15). OwnVoice was better for 20 of 21 speakers and slightly worse for 1 (DM0017,
-> a mild speaker). The gain holds in every pre-registered band (mild 28%, moderate 31%, severe 20%).
+> | group | clips | speakers | stock CER | OwnVoice CER | relative cut | better / worse / tie | clip p | speakers better / worse | patient p | stock STER | OwnVoice STER |
+> |---|---|---|---|---|---|---|---|---|---|---|---|
+> | dysarthric (all) | 420 | 21 | 0.760 | 0.568 | +25% | 194 / 75 / 151 | 1.02e-15 | 20 / 1 | 1.91e-06 | 0.117 | 0.084 |
+> | mild | 220 | 11 | 0.444 | 0.318 | +28% | 92 / 50 / 78 | 3.53e-05 | 10 / 1 | 0.00195 | 0.098 | 0.068 |
+> | moderate | 80 | 4 | 1.015 | 0.700 | +31% | 46 / 12 / 22 | 2.22e-06 | 4 / 0 | n/a | 0.114 | 0.055 |
+> | severe | 120 | 6 | 1.169 | 0.938 | +20% | 56 / 13 / 51 | 2.2e-07 | 6 / 0 | 0.0312 | 0.153 | 0.132 |
+> | control | 100 | 5 | 0.245 | 0.097 | +61% | 31 / 16 / 53 | 0.000283 | 5 / 0 | 0.0625 | 0.020 | 0.032 |
+>
+> **Headline:** 25% fewer character errors on real dysarthric speech (CER 0.760 → 0.568). OwnVoice
+> was better for 20 of 21 speakers and slightly worse for 1 (DM0017, a mild speaker): paired
+> Wilcoxon over the 21 speakers' mean CER, **p ≈ 2e-6**. The pre-registered per-clip test gives
+> p ≈ 1e-15, but it treats 20 clips from one person as independent, so it overstates the evidence;
+> quote the patient-level p. The gain holds in every pre-registered band (mild 28%, moderate 31%,
+> severe 20%); with 4–6 speakers per band, the band-level patient tests are weak (n/a with 4).
 >
 > **Caveats, all of which go wherever this number is quoted:**
 > - **Healthy controls improved too** (CER 0.245 → 0.097). Part of the gain is therefore *not*
@@ -30,7 +37,22 @@
 >   a usable caption for severe speakers yet.
 > - The material is smart-home commands, not conversation, and the etiologies (CP, Wilson's) are
 >   not the stroke and oral-cancer population the pitch targets.
-> - Tone (STER) improved overall (0.121 → 0.089). Exploratory; not tested for significance.
+> - Tone (STER) improved overall (0.117 → 0.084 after the 2026-11-26 fix; 0.121 → 0.089 before).
+>   Exploratory; not tested for significance. Healthy controls got slightly *worse* on tone
+>   (0.020 → 0.032).
+>
+> ## STER same-character defect — found 2026-11-26, fixed, small
+>
+> STER reads tones from pypinyin's dictionary, which gives some characters a context-dependent
+> tone (mainly 一: yi1 / yi2 / yi4 by the next syllable). When 一 was transcribed correctly but its
+> neighbour was wrong, the same character got a different tone and STER counted a tone error
+> (一起去 → 一些去 scored 0.500 instead of 0.000). **Fixed**: a tone error now requires the aligned
+> characters to differ. Locked in by two new cases in `src/test_metrics.py`.
+>
+> On the MDSC run this removed 4 of 144 OwnVoice tone errors (3%) and 3 of 154 stock tone errors
+> (2%). Per-clip means move a little more (0.121 → 0.117 stock, 0.089 → 0.084 OwnVoice) because a
+> clip with few matched syllables swings on one error. The simulated-data STER numbers further down
+> predate this fix and were not recomputed; expect similarly small shifts.
 
 
 > ## STER alignment defect — found, fixed, conclusion survives
@@ -39,8 +61,8 @@
 > a single insertion hid every tone error after it:
 >
 > ```
-> 我要買東西 -> 我要賣東西     STER 0.222   correct
-> 我要買東西 -> 我就要買東西   STER 0.000   WRONG — real tone error, invisible
+> 我要買東西 -> 我要賣東西     STER 0.200   correct
+> 我要買東西 -> 我就要賣東西   STER 0.000   WRONG — real tone error, invisible
 > ```
 >
 > It under-reported tone errors, and under-reported *more* on worse transcripts
